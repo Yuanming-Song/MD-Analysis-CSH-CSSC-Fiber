@@ -1,0 +1,3700 @@
+---
+title: "Restrained Fiber Plt"
+output:
+  slidy_presentation: default
+  ioslides_presentation: default
+date: "`r Sys.Date()`"
+---
+
+```{r, echo=FALSE,warning=FALSE,include=FALSE}
+library(dplyr)
+library(data.table)
+library(plotly)
+library(processx)
+library(tidyr)
+library(zoo)
+# Set the distance bin size max and min for distance
+disbinsize <- 0.1
+disbinmax <- 40# sqrt(2 * 100^2) / 2
+disbinmin <- 0
+# Set the distance bin size max and min for distance
+anglebinsize <- 0.05
+anglebinmax <- 1
+anglebinmin <- -1
+# Create an array of midpoint values for each distance 
+dishistx <- seq(disbinmin + disbinsize / 2, disbinmax - disbinsize / 2, by = disbinsize)
+# Create an array of distance bin 
+dishisbreak <- c(dishistx - disbinsize / 2, disbinmax)
+# Create an array of midpoint values 
+anglehistx <- seq(anglebinmin + anglebinsize / 2, anglebinmax - anglebinsize / 2, by = anglebinsize)
+# Create an array of angle bin 
+anglehisbreak<-c(anglehistx-anglebinsize/2,anglebinmax)
+savept<-FALSE
+plttheme<-{theme(panel.background = element_rect(fill='transparent'),
+                 text=element_text(#face = "bold",
+                   size=15),
+                 legend.direction = "horizontal",
+                 legend.position = "bottom",
+                 #legend.title = element_blank(),
+                 legend.key = element_rect(fill = "transparent"),
+                 #panel.grid.major=element_line(colour = "grey",size = 0.1),
+                 axis.line = element_line(colour = "black",size = 0.3),
+                 legend.text = element_text(size = 12),
+                 legend.title = element_text(size = 12),
+                 plot.title = element_text(size = 12),
+                 #aspect.ratio = 0.5,
+                 legend.background = element_rect(fill = "transparent"
+                 )
+)}
+
+```
+
+## Cylindrically Restrained simulation
+
+- Restrained A as measured from cryoEM 
+- 2 kcal/mol·Å
+- 3 Main systems
+- Pure CSSC: 587
+- Mixed: 411 CSSC 352 CSH
+- 70% dimerization as determined from CG simulations
+- All CSH & CSSC restrained 
+- Only CSSC restrained 
+
+## MSD of Entire Traj
+
+How mobile are they?
+
+- Center of mass of terminal carbons considered
+- Mobility is low along axial direction
+- Relative mobile along radial direction despite restrain
+- Could be due to conformational changes
+- Also could be due to fiber rotation
+- CSSC seems to be freed up in radial direction by not imposing restraint on CSH
+
+```{r MSD raw, echo=FALSE,warning=FALSE}
+RdataName<-c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_coor_sd_dist12to26.rda" #Orientout
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_coor_sd_dist12to29.rda" #Orientout
+  ,
+  "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_coor_sd_dist12to31.rda"
+)
+
+SysPrefixList<-c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+frames<-c(22641,15202)
+PltTypenameTypelist<-c(
+  "70% CSSC\nOnly CSSC\nRestrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+for (L in 1:3) {
+  load(RdataName[L])
+  for (resname in names(OutHist)) {
+    CoorDist<-c()
+    for (carti in names(OutHist[[resname]])) {
+      tempCoorDist<-as.data.frame(OutHist[[resname]][[carti]])
+      tempCoorDist<-cbind(tempCoorDist,tempCoorDist[,2]/sum(tempCoorDist[,2]))
+      tempCoorDist<-cbind(tempCoorDist,carti)
+      CoorDist<-rbind(CoorDist,tempCoorDist)
+      
+      
+    }
+    colnames(CoorDist)<-c("SD","Freq","rho","coor")
+    CoorDistPlt<-ggplot(CoorDist)+
+      geom_line(aes(x=SD,y=rho,col=coor))+
+      lims(x=c(0,10),y=c(0,0.15))+
+      labs(x=paste(resname, "coordinate sd"),y="Density",col=paste0(PltTypenameTypelist[L]))+
+      plttheme+
+      theme(legend.position =c(0.8,0.6),legend.direction = "vertical" )
+    assign(paste0("CoorDistPlt",L),CoorDistPlt)
+    if (savept) {
+      ggsave(paste0("CoorSDdist/CoorSDdist",PltTypenameTypelist[L],"_",resname,".png"),
+             plot=CoorDistPlt, dpi=1100, 
+             width=8.6, height=4.3,units="cm")
+    }
+  }
+}
+ggplotly(CoorDistPlt1)
+ggplotly(CoorDistPlt2)
+ggplotly(CoorDistPlt3)
+```
+
+## Time-dependent MSD
+```{r TD MSD raw, echo=FALSE,warning=FALSE}
+RdataName<-c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_coor_sd_dist12to26.rda" #Orientout
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_coor_sd_dist12to29.rda" #Orientout
+  ,
+  "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_coor_sd_dist12to31.rda"
+)
+
+SysPrefixList<-c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+frames<-c(22641,15202)
+PltTypenameTypelist<-c(
+  "70% CSSC\nOnly CSSC\nRestrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+for (L in 1:3) {
+  load(RdataName[L])
+  MSDraw<-as.data.frame(MSDraw)
+  ggplotly(ggplot(MSDraw[which(MSDraw$V1=="CSSC"),])+geom_line(aes(x=as.numeric(V2),y=as.numeric(V4),col=V3)))
+}
+```
+## Heavy Atom Distribution
+
+- Water present within the fiber
+- No hard dropoff near boundary indicating smooth sampling
+```{r Coordist Plt, echo=FALSE}
+subdir<-"heavy_atom_dist"
+RdataName<- {c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_coor_cylcssc_12to36.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_coor_12to43.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_coor_12to33.rda"
+)
+}
+SysPrefixList<-{c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+}
+PltTypenameTypelist<-{ c(
+  "70% CSSC Only CSSC Restrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+}
+for (L in 1:3) {
+  rm(fibdist)
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  SysPrefix<-SysPrefixList[L]
+  fibdist[[1]]$r<-as.numeric(fibdist[[1]]$r)
+  fibdist[[1]]$Freq<-as.numeric(fibdist[[1]]$Freq)
+  fibdist[[2]]$z<-as.numeric(fibdist[[2]]$z)
+  fibdist[[2]]$Freq<-as.numeric(fibdist[[2]]$Freq)
+  coorlabz<-labs(x="Axial Distance from Centre (Å)",y="Number Density (x1E-2/Å³)",title = PltTypenameTypelist[L])
+  coorlabr<-labs(x="Radial Distance from Centre (Å)",y="Number Density (x1E-2/Å³)",title=PltTypenameTypelist[L ])
+  
+  # Convert z to absolute value, then group by Resname
+  fibdistz_abs <- fibdist[[2]]
+  fibdistz_abs<-fibdistz_abs%>%
+    mutate(z = abs(z)) %>%           # Step 1: Convert z to absolute value
+    group_by(Resname, z) %>%         # Step 2: Group by Resname and z
+    summarise(
+      Freq = sum(Freq)/2,              # Step 3: Sum Freq for each Resname-z combination
+      .groups = 'drop'               # Ungroup after summarizing
+    )
+  
+  # View the result
+  fibdist[[2]]<-fibdistz_abs
+  plttitle<-     { theme(
+    legend.direction = "horizontal",
+    legend.position = "bottom",#c(0.5, 0.9),
+    #legend.title = element_text(vjust=1,hjust = 0.5,size = 8, margin = margin(b = -2)),
+    legend.text = element_text(size = 12),
+        plot.title = element_text(size = 12)
+
+    # Adjust the title vertical position
+  )
+  }
+  cshcsscpltscale<-{scale_color_manual(values = c("CSH" = "red", "CSSC" = "blue", "Water" = "green"))
+  }
+  plttitleguide<-guides(col = guide_legend(title.position = "top")) # Place the title on its own line
+  fibdist[[2]]$Freq<-fibdist[[2]]$Freq/(fibdist[[3]] * 27^2 * pi)
+  fibdist[[2]]$Resname <- gsub("TIP3", "Water", fibdist[[2]]$Resname)  
+fibdist[[2]]<-fibdist[[2]][-which(fibdist[[2]]$Freq<=max(fibdist[[2]]$Freq) & fibdist[[2]]$z >150),]
+  #generate plots
+  mixcoorpltz <-{
+    ggplot(fibdist[[2]]) +
+      geom_line(aes(x = z, y = Freq*100 , col = Resname)) +
+      plttheme +
+      plttitle +
+      cshcsscpltscale+
+      #plttitleguide +
+      coorlabz +
+      ylim(0, 0.065*100)
+    
+  }
+  fibdist[[1]]$Freq<-fibdist[[1]]$Freq/(pi*(fibdist[[3]]*200))
+  fibdist[[1]]$Resname <- gsub("TIP3", "Water", fibdist[[1]]$Resname)  
+
+  mixcoorpltr<-{
+    ggplot(fibdist[[1]])+
+      geom_line(aes(x=r,y=100*Freq/(((r+0.5)^2-(r-0.5)^2)),col=Resname))+
+      plttheme+
+      plttitle +
+      cshcsscpltscale+
+      #plttitleguide +
+      xlim(0,40)+
+      coorlabr+
+      ylim(0,0.06*100)
+    
+  }
+  if (1) {
+    if (L==1) {
+        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+         plot=mixcoorpltz, dpi=1100, 
+         width=10, height=10,units="cm")
+    }
+    mixcoorpltz <- mixcoorpltz +
+      theme(legend.position = "none",axis.title.y = element_blank())
+    mixcoorpltr<-mixcoorpltr+
+      theme(legend.position = "none",axis.title.y = element_blank())
+  }
+  assign(paste0("heavy_rho_r",L),(mixcoorpltr))
+  assign(paste0("heavy_rho_z",L),(mixcoorpltz))
+}
+
+
+```
+
+
+```{r Coordist Plt save, echo=FALSE}
+ggplotly(heavy_rho_z2)
+ggplotly(heavy_rho_r2)
+ggplotly(heavy_rho_z3)
+ggplotly(heavy_rho_r3)
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorZ.png"),
+         plot=heavy_rho_z2, dpi=1100, 
+         width=8, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorR.png"),
+         plot=heavy_rho_r2, dpi=1100, 
+         width=8, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorZ.png"),
+         plot=heavy_rho_z1, dpi=1100,
+         width=8, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorR.png"),
+         plot=heavy_rho_r1, dpi=1100,
+         width=8, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorZ.png"),
+         plot=heavy_rho_z3, dpi=1100, 
+         width=8, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorR.png"),
+         plot=heavy_rho_r3, dpi=1100, 
+         width=8, height=4.3,units="cm")
+}
+getwd()
+
+```
+
+## Heavy Atom Distribution by moiety
+
+- Water present within the fiber
+- No hard dropoff near boundary indicating smooth sampling
+```{r Coordist Plt, echo=FALSE}
+subdir<-"heavy_atom_dist_moiety/"
+RdataName<- {c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_coor_moiety12to43.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_coor_moiety12to43.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_coor_moiety12to33.rda"
+)
+}
+SysPrefixList<-{c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+}
+PltTypenameTypelist<-{ c(
+  "70% CSSC Only CSSC Restrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+}
+for (L in 2:3) {
+  rm(fibdist)
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  SysPrefix<-SysPrefixList[L]
+  fibdist[[1]]$r<-as.numeric(fibdist[[1]]$r)
+  fibdist[[1]]$Freq<-as.numeric(fibdist[[1]]$Freq)
+  fibdist[[2]]$z<-as.numeric(fibdist[[2]]$z)
+  fibdist[[2]]$Freq<-as.numeric(fibdist[[2]]$Freq)
+  coorlabz<-labs(x="Axial Distance from Centre (Å)",y="Number Density (x1E-2/Å³)",title = PltTypenameTypelist[L],col="Moiety")
+  coorlabr<-labs(x="Radial Distance from Centre (Å)",y="Number Density (x1E-2/Å³)",title=PltTypenameTypelist[L ],col="Moiety")
+
+  
+  # Convert z to absolute value, then group by Resname
+  fibdistz_abs <- fibdist[[2]]
+  fibdistz_abs<-fibdistz_abs%>%
+    mutate(z = abs(z)) %>%           # Step 1: Convert z to absolute value
+    group_by(Resname, z) %>%         # Step 2: Group by Resname and z
+    summarise(
+      Freq = sum(Freq)/2,              # Step 3: Sum Freq for each Resname-z combination
+      .groups = 'drop'               # Ungroup after summarizing
+    )
+  
+  # View the result
+  fibdist[[2]]<-fibdistz_abs
+  plttitle<-     { theme(
+    legend.direction = "horizontal",
+    legend.position = "bottom",#c(0.5, 0.9),
+    #legend.title = element_text(vjust=1,hjust = 0.5,size = 8, margin = margin(b = -2)),
+    legend.text = element_text(size = 12),
+        plot.title = element_text(size = 12)
+
+    # Adjust the title vertical position
+  )
+  }
+  
+  plttitleguide<-guides(col = guide_legend(title.position = "top")) # Place the title on its own line
+  fibdist[[2]]<-fibdist[[2]][which(fibdist[[2]]$Resname!="wat"),]
+  
+  fibdist[[2]]$Freq<-fibdist[[2]]$Freq/(fibdist[[3]] * 27^2 * pi)
+  fibdist[[2]]$Resname <- gsub("amo", "Amide", fibdist[[2]]$Resname)  
+  fibdist[[2]]$Resname <- gsub("phe", "Phenyl", fibdist[[2]]$Resname)  
+  fibdist[[2]]$Resname <- gsub("thi", "Thiol", fibdist[[2]]$Resname)  
+
+  #generate plots
+  mixcoorpltz <-{
+    ggplot(fibdist[[2]]) +
+      geom_line(aes(x = z, y = Freq*100 , col = Resname)) +
+      plttheme +
+      plttitle +
+      #plttitleguide +
+      coorlabz +
+      ylim(0, 0.04*100)
+    
+  }
+  fibdist[[1]]<-fibdist[[1]][which(fibdist[[1]]$Resname!="wat"),]
+  fibdist[[1]]$Freq<-fibdist[[1]]$Freq/(pi*(fibdist[[3]]*220))
+  fibdist[[1]]$Resname <- gsub("amo", "Amide", fibdist[[1]]$Resname)  
+  fibdist[[1]]$Resname <- gsub("phe", "Phenyl", fibdist[[1]]$Resname)  
+  fibdist[[1]]$Resname <- gsub("thi", "Thiol", fibdist[[1]]$Resname)  
+
+mixcoorpltr<-{
+    ggplot(fibdist[[1]])+
+      geom_line(aes(x=r,y=Freq*100/(((r+0.5)^2-(r-0.5)^2)),col=Resname))+
+      plttheme+
+      plttitle +
+      #plttitleguide +
+      xlim(0,40)+
+      coorlabr+
+      ylim(0,0.04*100)
+    
+}
+  if (1) {
+    if (L==2) {
+        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+         plot=mixcoorpltz, dpi=1100, 
+         width=10, height=10,units="cm")
+    }
+    mixcoorpltz <- mixcoorpltz +
+      theme(legend.position = "none",axis.title.y = element_blank())
+    mixcoorpltr<-mixcoorpltr+
+      theme(legend.position = "none",axis.title.y = element_blank())
+  }
+  assign(paste0("moiety_heavy_rho_r",L),(mixcoorpltr))
+  assign(paste0("moiety_heavy_rho_z",L),(mixcoorpltz))
+}
+
+```
+
+
+```{r Coordist Plt save, echo=FALSE}
+ggplotly(moiety_heavy_rho_z2)
+ggplotly(moiety_heavy_rho_r2)
+ggplotly(moiety_heavy_rho_z3)
+ggplotly(moiety_heavy_rho_r3)
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"Mix_CoorZ.png"),
+         plot=moiety_heavy_rho_z2, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Mix_CoorR.png"),
+         plot=moiety_heavy_rho_r2, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  # ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_CoorZ.png"),
+  #        plot=moiety_heavy_rho_z1, dpi=1100, 
+  #        width=8.6, height=4.3,units="cm")
+  # ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_CoorR.png"),
+  #        plot=moiety_heavy_rho_r1, dpi=1100, 
+  #        width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Pure_CoorZ.png"),
+         plot=moiety_heavy_rho_z3, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Pure_CoorR.png"),
+         plot=moiety_heavy_rho_r3, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+}
+
+```
+
+
+## Density of Fiber
+
+- ~0.255 is around density of cluster from CG simulations
+- Pure system is slightly denser
+- Mixed system is skewd as CSH outside the radius of the fiber are also considered
+- Need to be fixed
+```{r Heavy Atom Dist,echo=FALSE}
+subdir<-"fiber_density/"
+load("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_density_1to27.rda")
+window_size<-100
+MovingAvg <- rollmean(rhoout$rho, k = window_size, fill = NA)
+
+rhoout_ave <- data.frame(
+  Frame = rhoout$Frame,
+  rho = MovingAvg,
+  Run = "MovingAvg",
+  Time = rhoout$Time
+)
+mixdensityplt<-{
+  ggplot(rhoout)+
+    geom_line(aes(x=Time*2,y=rho*1174/30876,col=Run))+
+    geom_line(data=rhoout_ave,aes(x=Time*2,y=rho*1174/30876,col=Run))+
+    plttheme+
+    theme(legend.direction = "vertical")+
+    labs(y="Atomic Density in Fibre",x="t (ns)")+
+    ylim(0.0018,0.0035)+
+    plttheme+
+    theme(#legend.position = c(0.5,0.1),              
+      aspect.ratio = 0.6)
+  
+}
+load("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_density_1to24.rda")
+window_size<-100
+MovingAvg <- rollmean(rhoout$rho, k = window_size, fill = NA)
+rhoout_ave <- data.frame(
+  Frame = rhoout$Frame,
+  rho = MovingAvg,
+  Run = "MovingAvg",
+  Time = rhoout$Time
+)
+puredensityplt<-{ggplot(rhoout)+
+    geom_line(aes(x=Time*2,y=rho*1174/30876,col=Run))+
+    geom_line(data=rhoout_ave,aes(x=Time*2,y=rho*1174/30876,col=Run))+
+    plttheme+
+    labs(y="Atomic Density in Fibre",x="t (ns)")+
+    theme(legend.direction = "vertical")+
+    ylim(0.0018,0.0035)+
+    plttheme+
+    theme(#legend.position = c(0.5,0.1),              
+      aspect.ratio = 0.6)
+}
+load("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_density_12to20.rda")
+window_size<-100
+MovingAvg <- rollmean(rhoout$rho, k = window_size, fill = NA)
+
+rhoout_ave <- data.frame(
+  Frame = rhoout$Frame,
+  rho = MovingAvg,
+  Run = "MovingAvg",
+  Time = rhoout$Time
+)
+mixdensityCSSCplt<-{ggplot(rhoout)+
+    geom_line(aes(x=Time*2,y=rho*1174/30876,col=Run))+
+    geom_line(data=rhoout_ave,aes(x=Time*2,y=rho*1174/30876,col=Run))+
+    plttheme+
+    theme(legend.direction = "vertical")+
+    labs(y="Atomic Density in Fibre",x="t (ns)")+
+    ylim(0.001,0.0035)+
+    plttheme+
+    theme(#legend.position = c(0.5,0.1),              
+      aspect.ratio = 0.6)
+  
+}
+```
+
+Print or save plots
+
+```{r Heavy Atom Dist Save,echo=FALSE}
+ggplotly(mixdensityplt)
+ggplotly(puredensityplt)
+ggplotly(mixdensityCSSCplt)
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"/mixdensityplt.png"),
+         plot=mixdensityplt+theme(legend.position = "none"), dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/puredensityplt.png"),
+         plot=puredensityplt+theme(legend.position = "none"), dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/mixdensityCSSCplt.png"),
+         plot=mixdensityCSSCplt, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+}
+```
+
+## Density of Fiber with network
+```{r}
+subdir<-"fiber_density_network/"
+# Define the paths to the RData files
+RdataName <- {
+  c(
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_rho_network_1to43.rda",
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_rho_network_cylcssc_12to36.rda",
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_rho_network_1to33.rda",
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/CSH_27A_fibre_rho_network_2to08.rda"
+  )
+}
+# Define labels for each dataset
+PltTypenameTypelist <- {c(
+  "70% CSSC",
+  "70% CSSC\nOnly CSSC Restrained",
+  "100% CSSC",
+  "100% CSH"
+)
+}
+# Initialize an empty list to collect data
+plot_data <- list()
+
+# Loop through each file to load the data and add it to the plot_data list
+for (L in seq_along(RdataName)) {
+  load(RdataName[L]) # Load the RData file, which should contain rholist
+  rholist <- as.data.frame(rholist)
+  colnames(rholist)<-c("V1","V2","V3","V4")
+  # Add a column for identifying the type
+  rholist <- rholist %>%
+    mutate(
+      PltTypename = PltTypenameTypelist[L],
+      x = as.numeric(V1 * 0.02),  # Converting V1 to ns
+      #y = as.numeric(V2) * (2 * (V3 - V4) + V4) / (50 * (V3 - V4) + 26 * V4)  # Convert #atom / A^3 to # CSH /A^3, 50 atom per CSSC, 26 per CSH
+      y = as.numeric(V2) * (2 * (V3 - V4) + V4) * 1e24 *224.2794 /(6.00214e23* (52 * (V3 - V4) + 27 * V4) ) # Convert #atom / A^3 to g /L^3, 224.2794 g/mol, 
+      
+    )
+  
+  # Collect the modified data
+  plot_data[[L]] <- rholist
+}
+
+# Combine all data frames into one for plotting
+combined_data <- bind_rows(plot_data)
+#combined_data<-combined_data[-which(combined_data$V3==1),]
+# Plot the combined data with each line colored by PltTypename
+fib_rho_plt <- {
+  ggplot(combined_data) +
+    geom_line(aes(x = x, y = (V3*26/V2)/(220*27^2*pi), color = PltTypename)) +
+    labs(
+      x = "t (ns)",
+      #y = "Fiber Density\n(g/L)"  # Using expression() for Å
+            y = "Volume Fraction\n(1/Å³)"  # Using expression() for Å
+
+      #,color = "Simulation"
+    ) +
+    plttheme +
+    guides(col = guide_legend(title = NULL,nrow=2)) + # Place the title on its own line 
+    theme(
+      legend.position =  "top"
+      # ,
+      # legend.title = element_text(size = 8,
+      #                             #vjust=1,hjust = 0.5, 
+      #                             margin = margin(b = 0)
+      # ),
+      # legend.text = element_text(size = 8),
+      # legend.key.height = unit(.1, 'cm')   ,
+      # margin(0, .1, 0, 0, "cm")
+    )+
+    ylim(0,1)
+}
+
+# Alternative plot with different y-axis calculation
+fib_rho_plt2 <- {
+  ggplot(combined_data) +
+    geom_line(aes(x = x, y = (V3 + (V3 - V4))/1174, color = PltTypename)) +
+    labs(
+      x = "t (ns)",
+      y = "Fraction Involved\nin Fiber"  # Using expression() for Å
+      #,color = "Simulation"
+    ) +
+    plttheme +
+    guides(col = guide_legend(title = NULL,nrow=2)) + # Place the title on its own line 
+    theme(
+      legend.position =  c(0.5,0.2)
+      ,
+      legend.title = element_text(size = 5,
+                                  #vjust=1,hjust = 0.5, 
+                                  margin = margin(b = 0)
+      ),
+      legend.text = element_text(size = 5),
+      legend.key.height = unit(.1, 'cm')                    
+    )+
+    ylim(0.9,1)
+}
+```
+
+```{r}
+ggplotly(fib_rho_plt)
+ggplotly(fib_rho_plt2)
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"/densityplt.png"),
+         plot=fib_rho_plt, dpi=1100, 
+         width=8.6*2, height=2*5,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/fiber_sizeplt.png"),
+         plot= fib_rho_plt2, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+}
+```
+
+## Conformational preference
+
+PHE-PHE distance 
+
+- Open conformations are more prefered
+
+```{r PheDis Redo, echo=FALSE}
+# outname3<-"/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_PHEdis_Raw_5to27.rda"
+# #HistMatrix
+# load(outname3)
+subdir<-"phe-phe_dis/"
+RdataName<-c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_PHEdis_R+_12to29.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_PHEdis_SS12to37.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_PHEdis_SS12to33_every100.rda"
+)
+
+SysPrefixList<-c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+
+PltTypenameTypelist<-c(
+  "70% CSSC Only CSSC Restrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+
+for (L in 1:3) {
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  SysPrefix<-SysPrefixList[L]
+  HistMatrixROut_long<-PheDisOut$HistMatrixROut_long
+  # HistMatrixROut_long$Pr<- HistMatrixROut_long$Pr* HistMatrixROut_long$R
+  HistMatrixROut_long_median<-median(HistMatrixROut_long$Pr[which(HistMatrixROut_long$Pr>0)])
+  PheDisRPlt<-{
+    ggplot(HistMatrixROut_long, aes(x = R, y = D, fill = Pr*1E5)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red","black"),
+        #values = scales::rescale(c(0, HistMatrixROut_long_median,2*HistMatrixROut_long_median, max(HistMatrixROut_long$Pr))),
+        #breaks = c(0, HistMatrixROut_long_median, 2*HistMatrixROut_long_median, max(HistMatrixROut_long$Pr)),
+        limits = c(1e-100, 20),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Radial Distance of Disulfide Bond (Å)",
+        y = "PHE PHE Distance d (Å)",
+        fill="Number Density (xE-5/Å³)",#paste0(PltTypenameType,"\nNumber Density\n(/Å³)"),
+        title = PltTypenameType
+        ) +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 30, 5)) +
+      scale_y_continuous(limits = c(2.5,14.5),breaks = seq(0, 15, 5))+
+      theme(
+            legend.direction = "horizontal",
+            #legend.box.margin = margin(t = -10),
+            legend.key.width  = unit(1.5,"cm"),
+            legend.key.height   = unit(0.5,"cm"),
+            legend.position = "top",
+      )
+  }
+  if (L==1) {
+            ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+         plot=PheDisRPlt, dpi=1100, 
+         width=8.6*2.2, height=10,units="cm")
+    }
+    PheDisRPlt <- PheDisRPlt +
+      theme(legend.position = "none",axis.title.y = element_blank(),axis.title.x = element_blank())
+  
+  
+  # abs_hist_ang_r<-as.matrix(abs_hist_ang_r)
+  # for (i in 1:nrow(abs_hist_ang_r)) {
+  #   R<-as.numeric(rownames(abs_hist_ang_r[i,]))
+  #   abs_hist_ang_r[i,]<-abs_hist_ang_r[i,]/(200*PheDisOut$frame*pi*((R+0.5)^2-(R-0.5)^2))
+  # }
+  # AbsOrientRpltContr<-{
+  #   plot_ly(                         
+  #     # width = 1100*3.25,  height = 1100*2.5,
+  #     type = "contour", 
+  #     y = as.numeric(PheDisOut$AbsOrientBreaks), 
+  #     x =as.numeric(PheDisOut$RBreaks) , 
+  #     z = as.matrix(t(abs_hist_ang_r)),
+  #     colorscale='Jet',
+  #     reversescale =F#,
+  #     #autocontour = F, 
+  #     #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  #   ) %>% 
+  #     layout(#font=list(size=1100*6/72),
+  #       yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+  #       xaxis = list(title = "|cos(φ)|"
+  #                    #"|cos(angle between normal vectors to aromatic rings)|"
+  #                    ,dtick=0.1)
+  #     )%>% 
+  #     colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
+  #       #title = "dG\n(kcal/mol)",dtick=0.5
+  #     )
+  # }
+  
+  # Create a new variable representing the binned R values
+  num_bins<-5
+  HistMatrixROut_long <- HistMatrixROut_long %>%
+    mutate(Binned_R = cut(R, breaks = num_bins, labels = FALSE))
+  
+  # Group by the binned R values and calculate the mean Pr values for each group
+  averaged_data <- HistMatrixROut_long %>%
+    group_by(Binned_R, D) %>%
+    summarize(R = mean(R), Freq = mean(Freq), .groups = 'drop')
+  averaged_data<-as.data.frame(averaged_data)
+  averaged_data<-averaged_data %>% mutate(Pr=Freq/(200*PheDisOut$Frame*pi*((R+3)^2-(R-3)^2)))
+  averaged_data$Pr[averaged_data$Pr ==0] <- NA
+  
+  # Create 3D scatter plot with averaged data
+  PHEdisRpltContrAve<-plot_ly(data = averaged_data, 
+                              x = ~R, 
+                              y = ~D, 
+                              z = ~Pr, 
+                              type = "scatter3d", 
+                              mode = "markers",
+                              marker = list(size = 10)
+  ) %>%
+    layout(scene = list(xaxis = list(title = "R"),
+                        yaxis = list(title = "D"),
+                        zaxis = list(title = "Pr")))
+  
+  
+  PHEdisRpltContr<-{
+    plot_ly(        
+      data = averaged_data, 
+      x = ~R, 
+      y = ~D, 
+      z = ~Pr,
+      # width = 1100*3.25,  height = 1100*2.5,
+      type = "contour", 
+      colorscale='Jet',
+      reversescale =T
+      #autocontour = F, 
+      #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+    ) %>% 
+      layout(#font=list(size=1100*6/72),
+        yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+        xaxis = list(title = "|cos(φ)|"
+                     #"|cos(angle between normal vectors to aromatic rings)|"
+                     # ,dtick=0.1
+        )
+      )%>% 
+      colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
+        #title = "dG\n(kcal/mol)",dtick=0.5
+      )
+  }
+  assign(paste0("PHEdisRpltContrAve",L),PHEdisRpltContrAve)
+  assign(paste0("PHEdisRpltContr",L),PHEdisRpltContr)
+  assign(paste0("PheDisRPlt",L),PheDisRPlt)
+  
+}
+```
+
+```{r PheDis plt, echo=FALSE}
+
+PHEdisRpltContrAve1
+PHEdisRpltContrAve2
+PHEdisRpltContrAve3
+ggplotly(PheDisRPlt1)
+ggplotly(PheDisRPlt2)
+ggplotly(PheDisRPlt3)
+
+ggplotly(PHEdisRpltContr1)
+ggplotly(PHEdisRpltContr2)
+ggplotly(PHEdisRpltContr3)
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"MixCSSCpheDis.png"),
+         plot=PheDisRPlt1, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"MixpheDis.png"),
+         plot=PheDisRPlt2, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"PurepheDis.png"),
+         plot=PheDisRPlt3, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+}
+
+```
+
+## Backbone Orientation in Radial Direction
+
+
+(Are they aligned along radial direction or in tangent?)
+
+- cos(angle between CSSC BB vector and vector from origin to COM of two BB carbons)
+- Most frequent angle at each vertical (distance bin) is normalized to 1
+
+```{r BB Orient Radial, echo=FALSE}
+subdir<-"Radial_ori/"
+RdataName<-c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_BB_orient_radial12to31.rda" #Orientout
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_BB_orient_radial12to39.rda" #Orientout
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_BB_orient_radial12to31.rda"
+)
+
+SysPrefixList<-c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+PltTypenameTypelist<-c(
+  "70% CSSC Only CSSC Restrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+
+for (L in 1:3) {
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  plotnameprefix<-SysPrefixList[L]
+  OrientDist<-HistMatrix
+  hist_ang_r <- as.data.frame.matrix(OrientDist$hist_ang_r)
+  colnames(hist_ang_r)<-as.numeric(OrientDist$OrientBreaks)
+  rownames(hist_ang_r)<-as.numeric(OrientDist$RBreaks)
+  hist_ang_r$rowname <- as.numeric(rownames(hist_ang_r))
+  
+  hist_ang_r_long <- gather(hist_ang_r, key = "column", value = "value", -rowname)
+  colnames(hist_ang_r_long)<-c("R","Ang","Freq")
+  for (i in 1:3) {
+    hist_ang_r_long[,i]<-as.numeric(hist_ang_r_long[,i])
+  }
+  hist_ang_r_long<-hist_ang_r_long %>% mutate(Pr=Freq/(200*OrientDist$frame*pi*((R+0.5)^2-(R-0.5)^2)))
+  
+  OrientRplt<-{
+    ggplot(hist_ang_r_long, aes(x = R, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),
+        values = scales::rescale(c(0, max(hist_ang_r_long$Pr)/2, max(hist_ang_r_long$Pr))),
+        breaks = c(0, max(hist_ang_r_long$Pr)/2, max(hist_ang_r_long$Pr)),
+        limits = c(1e-100, max(hist_ang_r_long$Pr)),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Radial Distance from Centre (Å)",
+        y = "cos(Φ)",
+        fill=paste0("Number Density (xE-7/Å³)\n",PltTypenameType)) +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 30, 5)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2))+
+      theme(legend.direction = "horizontal",legend.title = element_text(size = 2),legend.key.size=unit(1,"cm"))
+  }
+  
+  
+  abs_hist_ang_r <- as.data.frame.matrix(OrientDist$abs_hist_ang_r)
+  colnames(abs_hist_ang_r)<-as.numeric(OrientDist$AbsOrientBreaks)
+  rownames(abs_hist_ang_r)<-as.numeric(OrientDist$RBreaks)
+  abs_hist_ang_r$rowname <- as.numeric(rownames(abs_hist_ang_r))
+  
+  abs_hist_ang_r_long <- gather(abs_hist_ang_r, key = "column", value = "value", -rowname)
+  colnames(abs_hist_ang_r_long)<-c("R","Ang","Freq")
+  for (i in 1:3) {
+    abs_hist_ang_r_long[,i]<-as.numeric(abs_hist_ang_r_long[,i])
+  }
+  abs_hist_ang_r_long<-abs_hist_ang_r_long %>% mutate(Pr=Freq/(200*OrientDist$frame*pi*((R+0.5)^2-(R-0.5)^2)))
+  abs_hist_ang_r_long$Pr[which(abs_hist_ang_r_long$Pr==0)]<-NA
+  AbsOrientRplt<-{
+    ggplot(abs_hist_ang_r_long, aes(x = R, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),#"black"),
+        #values = scales::rescale(c(0, median(abs_hist_ang_r_long$Pr),2*median(abs_hist_ang_r_long$Pr), max(abs_hist_ang_r_long$Pr))),
+        #breaks = c(0, median(abs_hist_ang_r_long$Pr), 2*median(abs_hist_ang_r_long$Pr), max(abs_hist_ang_r_long$Pr)),
+        #limits = c(1e-100, max(abs_hist_ang_r_long$Pr)),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Radial Distance from Centre (Å)",
+        y = "cos(Φ)",
+        fill=paste0("Number Density (xE-7/Å³)"),
+        title = PltTypenameType) +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 30, 5)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2),limits = c(0,1))+
+      theme(         legend.direction = "horizontal",
+        legend.box.margin = margin(t = -10,b=-10),
+        legend.key.width  = unit(1,"cm"),
+        legend.key.height   = unit(.2,"cm"),
+        legend.position = "top",
+        legend.title.position = "top"
+        )
+      
+  }  
+    if (L==1) {
+    ggsave(paste0("Ind_Plt/",subdir,"/legendR.png"),
+           plot=AbsOrientRplt, dpi=1100, 
+           width=8.6*2.2, height=10,units="cm")
+  }
+  AbsOrientRplt <- AbsOrientRplt +
+    theme(#legend.position = "none",
+      axis.title.y = element_blank())
+  
+  for (i in 1:nrow(abs_hist_ang_r)) {
+    R<-as.numeric(rownames(abs_hist_ang_r[i,]))
+    abs_hist_ang_r[i,]<-abs_hist_ang_r[i,]/(200*OrientDist$frame*pi*((R+0.5)^2-(R-0.5)^2))
+  }
+  AbsOrientRpltContr<-{
+    plot_ly(                         
+      # width = 1100*3.25,  height = 1100*2.5,
+      type = "contour", 
+      y = as.numeric(OrientDist$AbsOrientBreaks), 
+      x =as.numeric(OrientDist$RBreaks) , 
+      z = as.matrix(t(abs_hist_ang_r)),
+      colorscale='Jet',
+      reversescale =F#,
+      #autocontour = F, 
+      #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+    ) %>% 
+      layout(#font=list(size=1100*6/72),
+        yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+        xaxis = list(title = "|cos(φ)|"
+                     #"|cos(angle between normal vectors to aromatic rings)|"
+                     ,dtick=0.1)
+      )%>% 
+      colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
+        #title = "dG\n(kcal/mol)",dtick=0.5
+      )
+  }
+  
+  hist_ang_z <- as.data.frame.matrix(OrientDist$hist_ang_z)
+  colnames(hist_ang_z)<-as.numeric(OrientDist$OrientBreaks)
+  rownames(hist_ang_z)<-as.numeric(OrientDist$ZBreaks)
+  hist_ang_z$rowname <- as.numeric(rownames(hist_ang_z))
+  
+  hist_ang_z_long <- gather(hist_ang_z, key = "column", value = "value", -rowname)
+  colnames(hist_ang_z_long)<-c("Z","Ang","Freq")
+  for (i in 1:3) {
+    hist_ang_z_long[,i]<-as.numeric(hist_ang_z_long[,i])
+  }
+  hist_ang_z_long<-hist_ang_z_long %>% mutate(Pr=Freq/(OrientDist$frame*pi*27^2))
+  
+  OrientZplt<-{
+    ggplot(hist_ang_z_long, aes(x = Z, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),
+        values = scales::rescale(c(0, max(hist_ang_z_long$Pr)/2, max(hist_ang_z_long$Pr))),
+        breaks = c(0, max(hist_ang_z_long$Pr)/2, max(hist_ang_z_long$Pr)),
+        limits = c(1e-100, max(hist_ang_z_long$Pr)),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Axial Distance from Centre (Å)",
+        y = "cos(Φ)",
+        fill=paste0("Number Density (xE-7/Å³)\n",PltTypenameType)) +
+      plttheme +
+      scale_x_continuous(breaks = seq(-160, 160, 5)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2))+
+      theme(legend.direction = "horizontal",legend.title = element_text(size = 2),legend.key.size=unit(1,"cm"))
+  }
+  
+  if (L==1) {
+    ggsave(paste0("Ind_Plt/",subdir,"/legendZ.png"),
+           plot=OrientZplt, dpi=1100, 
+           width=8.6*2.2, height=10,units="cm")
+  }
+  OrientZplt <- OrientZplt +
+    theme(legend.position = "none",axis.title.y = element_blank())
+  abs_hist_ang_z <- as.data.frame.matrix(OrientDist$abs_hist_ang_z)
+  colnames(abs_hist_ang_z)<-as.numeric(OrientDist$AbsOrientBreaks)
+  rownames(abs_hist_ang_z)<-as.numeric(OrientDist$ZBreaks)
+  abs_hist_ang_z$rowname <- as.numeric(rownames(abs_hist_ang_z))
+  #abs_hist_ang_z<-abs_hist_ang_z[,-which(as.numeric(colnames(abs_hist_ang_z)[-length(colnames(abs_hist_ang_z))])<0)]
+  
+  #average out distribution per 10 A along z
+  abs_hist_ang_z_mutate<-c()
+  #index of initial row
+  RowList<-seq(1,nrow(abs_hist_ang_z),10)
+  for (counter in seq(1,length(RowList),1)) {
+    row<-RowList[counter]
+    abs_hist_ang_z_mutate_temprow<-abs_hist_ang_z[row,]
+    for (temprow in seq(row+1,row+10-1,1)) {
+      abs_hist_ang_z_mutate_temprow<-abs_hist_ang_z[temprow,]+abs_hist_ang_z_mutate_temprow
+    }
+    #normalize lagest to 1
+    # abs_hist_ang_z_mutate_temprow<-abs_hist_ang_z_mutate_temprow/max(abs_hist_ang_z_mutate_temprow[,-12])
+    abs_hist_ang_z_mutate_temprow[,12]<-mean(abs_hist_ang_z[seq(row,row+10-1,1),12])
+    abs_hist_ang_z_mutate<-rbind(abs_hist_ang_z_mutate,abs_hist_ang_z_mutate_temprow)
+  }
+  abs_hist_ang_z<-abs_hist_ang_z_mutate
+  abs_hist_ang_z_long <- gather(abs_hist_ang_z, key = "column", value = "value", -rowname)
+  colnames(abs_hist_ang_z_long)<-c("Z","Ang","Freq")
+  for (i in 1:3) {
+    abs_hist_ang_z_long[,i]<-as.numeric(abs_hist_ang_z_long[,i])
+  }
+  abs_hist_ang_z_long<-abs_hist_ang_z_long %>% mutate(Pr=Freq/(OrientDist$frame*pi*27^2*10))
+  abs_hist_ang_z_long$Freq[is.nan(abs_hist_ang_z_long$Freq)] <- 0
+  abs_hist_ang_z_long$Pr[which(abs_hist_ang_z_long$Freq==0)]<-NA
+  abs_hist_ang_z_long<-abs_hist_ang_z_long %>%
+    mutate(Z = abs(Z)) %>%  # Convert Z to absolute values
+    group_by(Z, Ang) %>%     # Group by unique Z and Ang pairs
+    summarise(Freq = mean(Freq), Pr = mean(Pr), .groups = 'drop') 
+  #abs_hist_ang_z_long$Pr<-abs_hist_ang_z_long$Freq
+  AbsOrientZplt<-{
+    ggplot(abs_hist_ang_z_long, aes(x = Z, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),
+        # values = scales::rescale(c(0, max(abs_hist_ang_z_long$Pr)/2, max(abs_hist_ang_z_long$Pr))),
+        #values = scales::rescale(c(0,0.5,1)),
+        # breaks = c(0, max(abs_hist_ang_z_long$Pr)/2, max(abs_hist_ang_z_long$Pr)),
+        #breaks = c(0, 0.5,1),
+        #limits = c(1e-100, max(abs_hist_ang_z_long$Pr)),
+        #limits = c(1e-100, 1),
+        
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Axial Distance from Centre (Å)",
+        y = "cos(Φ)",
+        fill=paste0("Number Density (xE-7/Å³)"),
+        title=PltTypenameType) +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 150, 30),limits = c(0,120)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2),limits = c(0,1))+
+      theme(
+        legend.direction = "horizontal",
+        legend.box.margin = margin(t = -10,b=-10),
+        legend.key.width  = unit(1,"cm"),
+        legend.key.height   = unit(.2,"cm"),
+        legend.position = "top",
+        legend.title.position = "top"
+        
+      )
+  }
+  
+  if (L==1) {
+    ggsave(paste0("Ind_Plt/",subdir,"/legendZ.png"),
+           plot=AbsOrientZplt, dpi=1100, 
+           width=8.6*2.2, height=10,units="cm")
+  }
+  AbsOrientZplt <- AbsOrientZplt +
+    theme(#legend.position = "none",
+      axis.title.y = element_blank())
+  
+
+
+  if (savept) {
+    if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+      dir.create(paste0("Ind_Plt/",subdir))
+    }
+    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriZ.png"),
+    #        plot=OrientZplt, dpi=1100, 
+    #        width=8.6, height=4.3,units="cm")
+    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriR.png"),
+    #        plot=OrientRplt, dpi=1100, 
+    #        width=8.6, height=4.3,units="cm")
+    ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"AbsOriZ.png"),
+           plot=AbsOrientZplt, dpi=1100, 
+           width=8.6, height=4.3*1.3,units="cm")  
+    ggsave(paste0(getwd(),"/Ind_Plt/",subdir,plotnameprefix,"AbsOriR.png"),
+           plot=AbsOrientRplt, dpi=1100, 
+           width=8.6, height=4.3*1.3,units="cm")  
+  }
+  assign(paste0("OrientZplt",L),OrientZplt)
+  assign(paste0("OrientRplt",L),OrientRplt)
+  assign(paste0("AbsOrientZplt",L),AbsOrientZplt)
+  assign(paste0("AbsOrientRplt",L),AbsOrientRplt)
+  
+  
+}
+#   ggplotly(OrientZplt1)
+#     ggplotly(OrientZplt2)
+#   ggplotly(OrientZplt3)
+# ggplotly(OrientRplt1)
+# ggplotly(OrientRplt2)
+# ggplotly(OrientRplt3)
+
+ggplotly(AbsOrientZplt1)
+ggplotly(AbsOrientZplt2)
+ggplotly(AbsOrientZplt3)
+
+ggplotly(AbsOrientRplt1)
+ggplotly(AbsOrientRplt2)
+ggplotly(AbsOrientRplt3)
+```
+
+
+## Backbone Orientation in Axial Direction
+
+
+```{r BB Orient Axial, echo=FALSE}
+subdir<-"backbone_oren_axi/"
+RdataName<-c(
+  # "/Users/song/Documents/Research/HPC/dfs2/mrsec/Ccyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_BB_orient"
+  #,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_BB_orient12to38.rda" #Orientout
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_BB_orient12to31.rda"
+)
+
+SysPrefixList<-c(
+  # "CSSCMix"
+  # ,
+  "Mix"
+  ,
+  "Pure"
+)
+frames<-c(22641,15202)
+PltTypenameTypelist<-c(
+  # "70% CSSC\nOnly CSSC\nRestrained"
+  # ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+
+for (L in 1:2) {
+  #set differe
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  plotnameprefix<-SysPrefixList[L]
+  OrientDist<-HistMatrix
+  OrientDist$frame<-frames[L]
+  hist_ang_r <- as.data.frame.matrix(OrientDist$hist_ang_r)
+  colnames(hist_ang_r)<-as.numeric(OrientDist$OrientBreaks)
+  rownames(hist_ang_r)<-as.numeric(OrientDist$RBreaks)
+  hist_ang_r$rowname <- as.numeric(rownames(hist_ang_r))
+  #reshape the 2D histogram
+  hist_ang_r_long <- gather(hist_ang_r, key = "column", value = "value", -rowname)
+  colnames(hist_ang_r_long)<-c("R","Ang","Freq")
+  for (i in 1:3) {
+    hist_ang_r_long[,i]<-as.numeric(hist_ang_r_long[,i])
+  }
+  #normalize
+  hist_ang_r_long<-hist_ang_r_long %>% mutate(Pr=Freq/(200*OrientDist$frame*pi*((R+0.5)^2-(R-0.5)^2)))
+  
+  OrientRplt<-{
+    ggplot(hist_ang_r_long, aes(x = R, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),
+        values = scales::rescale(c(0, max(hist_ang_r_long$Pr)/2, max(hist_ang_r_long$Pr))),
+        breaks = c(0, max(hist_ang_r_long$Pr)/2, max(hist_ang_r_long$Pr)),
+        limits = c(1e-100, max(hist_ang_r_long$Pr)),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Radial Distance from Centre (Å)",
+        y = "cos(angle between\nmonomer and axis)",
+        fill=paste0("Number Density (/Å³)\n",PltTypenameType)) +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 30, 5)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2))+
+      theme(legend.direction = "vertical",legend.title = element_text(size = 8),legend.key.size=unit(0.1,"in"))
+  }
+  #plot only absolute value of cos()
+  abs_hist_ang_r <- as.data.frame.matrix(OrientDist$abs_hist_ang_r)
+  colnames(abs_hist_ang_r)<-as.numeric(OrientDist$OrientBreaks)
+  rownames(abs_hist_ang_r)<-as.numeric(OrientDist$RBreaks)
+  abs_hist_ang_r$rowname <- as.numeric(rownames(abs_hist_ang_r))
+  #reshape 2D histogram
+  abs_hist_ang_r_long <- gather(abs_hist_ang_r, key = "column", value = "value", -rowname)
+  colnames(abs_hist_ang_r_long)<-c("R","Ang","Freq")
+  for (i in 1:3) {
+    abs_hist_ang_r_long[,i]<-as.numeric(abs_hist_ang_r_long[,i])
+  }
+  #normalize
+  abs_hist_ang_r_long<-abs_hist_ang_r_long %>% mutate(Pr=Freq/(200*OrientDist$frame*pi*((R+0.5)^2-(R-0.5)^2)))
+  abs_hist_ang_r_long$Pr[which(abs_hist_ang_r_long$Pr==0)]<-NA
+  AbsOrientRplt<-{
+    ggplot(abs_hist_ang_r_long, aes(x = R, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),#"black"),
+        #values = scales::rescale(c(0, median(abs_hist_ang_r_long$Pr),2*median(abs_hist_ang_r_long$Pr), max(abs_hist_ang_r_long$Pr))),
+        #breaks = c(0, median(abs_hist_ang_r_long$Pr), 2*median(abs_hist_ang_r_long$Pr), max(abs_hist_ang_r_long$Pr)),
+        #limits = c(1e-100, max(abs_hist_ang_r_long$Pr)),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Radial Distance from Centre (Å)",
+        y = "cos(ψ)",
+fill=paste0("Number Density (xE-7/Å³)"),
+        title = PltTypenameType)  +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 30, 5)) +
+      scale_y_continuous(breaks = seq(0, 1, 0.2),limits = c(0,1))+
+      theme(legend.direction = "horizontal",
+        legend.box.margin = margin(t = -10,b=-10),
+        legend.key.width  = unit(1,"cm"),
+        legend.key.height   = unit(.2,"cm"),
+        legend.position = "top",
+        legend.title.position = "top"
+        )
+      
+  }  
+    if (L==1) {
+    ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+           plot=AbsOrientRplt, dpi=1100, 
+           width=8.6*2.2, height=10,units="cm")
+  }
+  AbsOrientRplt <- AbsOrientRplt +
+    theme(#legend.position = "none",
+      axis.title.y = element_blank())
+  for (i in 1:nrow(abs_hist_ang_r)) {
+    R<-as.numeric(rownames(abs_hist_ang_r[i,]))
+    abs_hist_ang_r[i,]<-abs_hist_ang_r[i,]/(200*OrientDist$frame*pi*((R+0.5)^2-(R-0.5)^2))
+  }
+  AbsOrientRpltContr<-{
+    plot_ly(                         
+      # width = 1100*3.25,  height = 1100*2.5,
+      type = "contour", 
+      y = as.numeric(OrientDist$AbsOrientBreaks), 
+      x =as.numeric(OrientDist$RBreaks) , 
+      z = as.matrix(t(abs_hist_ang_r)),
+      colorscale='Jet',
+      reversescale =F#,
+      #autocontour = F, 
+      #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+    ) %>% 
+      layout(#font=list(size=1100*6/72),
+        yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+        xaxis = list(title = "|cos(φ)|"
+                     #"|cos(angle between normal vectors to aromatic rings)|"
+                     ,dtick=0.1)
+      )%>% 
+      colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
+        #title = "dG\n(kcal/mol)",dtick=0.5
+      )
+  }
+  
+  
+  
+  hist_ang_z <- as.data.frame.matrix(OrientDist$hist_ang_z)
+  colnames(hist_ang_z)<-as.numeric(OrientDist$OrientBreaks)
+  rownames(hist_ang_z)<-as.numeric(OrientDist$ZBreaks)
+  hist_ang_z$rowname <- as.numeric(rownames(hist_ang_z))
+  
+  hist_ang_z_long <- gather(hist_ang_z, key = "column", value = "value", -rowname)
+  colnames(hist_ang_z_long)<-c("Z","Ang","Freq")
+  for (i in 1:3) {
+    hist_ang_z_long[,i]<-as.numeric(hist_ang_z_long[,i])
+  }
+  hist_ang_z_long<-hist_ang_z_long %>% mutate(Pr=Freq/(OrientDist$frame*pi*27^2))
+  
+  OrientZplt<-{
+    ggplot(hist_ang_z_long, aes(x = Z, y = Ang, fill = Pr)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),
+        values = scales::rescale(c(0, max(hist_ang_z_long$Pr)/2, max(hist_ang_z_long$Pr))),
+        breaks = c(0, max(hist_ang_z_long$Pr)/2, max(hist_ang_z_long$Pr)),
+        limits = c(1e-100, max(hist_ang_z_long$Pr)),
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Axial Distance from Centre (Å)",
+        y = "cos(angle between\nmonomer and axis)",
+        fill=paste0("Number Density (/Å³)\n",PltTypenameType)) +
+      plttheme +
+      scale_x_continuous(breaks = seq(-160, 160, 5)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2))+
+      theme(legend.direction = "vertical",legend.title = element_text(size = 8),legend.key.size=unit(0.1,"in"))
+  }
+  
+  abs_hist_ang_z <- as.data.frame.matrix(OrientDist$abs_hist_ang_z)
+  colnames(abs_hist_ang_z)<-as.numeric(OrientDist$OrientBreaks)
+  rownames(abs_hist_ang_z)<-as.numeric(OrientDist$ZBreaks)
+  abs_hist_ang_z$rowname <- as.numeric(rownames(abs_hist_ang_z))
+  abs_hist_ang_z<-abs_hist_ang_z[,-which(as.numeric(colnames(abs_hist_ang_z)[-length(colnames(abs_hist_ang_z))])<0)]
+  
+  #average out distribution per 10 A along z
+  abs_hist_ang_z_mutate<-c()
+  #index of initial row
+  RowList<-seq(1,nrow(abs_hist_ang_z),10)
+  for (counter in seq(1,length(RowList),1)) {
+    row<-RowList[counter]
+    abs_hist_ang_z_mutate_temprow<-abs_hist_ang_z[row,]
+    for (temprow in seq(row+1,row+10-1,1)) {
+      abs_hist_ang_z_mutate_temprow<-abs_hist_ang_z[temprow,]+abs_hist_ang_z_mutate_temprow
+    }
+    #abs_hist_ang_z_mutate_temprow<-abs_hist_ang_z_mutate_temprow/max(abs_hist_ang_z_mutate_temprow[,-12])
+    abs_hist_ang_z_mutate_temprow[,12]<-mean(abs_hist_ang_z[seq(row,row+10-1,1),12])
+    abs_hist_ang_z_mutate<-rbind(abs_hist_ang_z_mutate,abs_hist_ang_z_mutate_temprow)
+  }
+  abs_hist_ang_z<-abs_hist_ang_z_mutate
+  
+  abs_hist_ang_z_long <- gather(abs_hist_ang_z, key = "column", value = "value", -rowname)
+  colnames(abs_hist_ang_z_long)<-c("Z","Ang","Freq")
+  for (i in 1:3) {
+    abs_hist_ang_z_long[,i]<-as.numeric(abs_hist_ang_z_long[,i])
+  }
+  abs_hist_ang_z_long$Freq[is.nan(abs_hist_ang_z_long$Freq)] <- 0
+  
+  abs_hist_ang_z_long<-abs_hist_ang_z_long %>% mutate(Pr=Freq/(OrientDist$frame*pi*27^2)
+  )
+  abs_hist_ang_z_long$Pr[which(abs_hist_ang_z_long$Pr==0)]<-NA
+  abs_hist_ang_z_long <- abs_hist_ang_z_long %>%
+    mutate(Z = abs(Z)) %>%        # Step 1: Convert Z to absolute value
+    group_by(Z,Ang) %>%               # Step 2: Group by Z
+    summarise(
+      Freq = sum(Freq) / 2,       # Step 3: Sum Freq for each unique Z value
+      Pr = sum(Pr) / 2,              # Optional: Use mean if Pr has duplicate values
+      .groups = 'drop'            # Ungroup after summarizing
+    )
+  AbsOrientZplt<-{
+    ggplot(abs_hist_ang_z_long, aes(x = Z, y = Ang, fill = Pr*1E7)) +
+      geom_tile() +
+      scale_fill_gradientn(
+        colors = c("blue", "yellow","red"),
+        # values = scales::rescale(c(0, max(abs_hist_ang_z_long$Pr)/2, max(abs_hist_ang_z_long$Pr))),
+        #values = scales::rescale(c(0,0.5,1)),
+        # breaks = c(0, max(abs_hist_ang_z_long$Pr)/2, max(abs_hist_ang_z_long$Pr)),
+        #breaks = c(0, 0.5,1),
+        #limits = c(1e-100, max(abs_hist_ang_z_long$Pr)),
+        #limits = c(1e-100, 1),
+        
+        na.value = "transparent"
+      )+
+      labs(
+        x = "Axial Distance from Centre (Å)",
+        y = "cos(ψ)",
+        fill=paste0("Number Density (xE-7/Å³)"),
+        title = PltTypenameType)  +
+      plttheme +
+      scale_x_continuous(breaks = seq(0, 150, 30),limits = c(0,120)) +
+      scale_y_continuous(breaks = seq(-1, 1, 0.2))+
+
+      theme(legend.direction = "horizontal",
+        legend.box.margin = margin(t = -10,b=-10),
+        legend.key.width  = unit(1,"cm"),
+        legend.key.height   = unit(.2,"cm"),
+        legend.position = "top",
+        legend.title.position = "top"
+        )
+      
+  }  
+  AbsOrientZplt <- AbsOrientZplt +
+    theme(#legend.position = "none",
+      axis.title.y = element_blank())
+  
+  if (savept) {
+    if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+      dir.create(paste0("Ind_Plt/",subdir))
+    }
+    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriZ.png"),
+    #        plot=OrientZplt, dpi=1100, 
+    #        width=8.6, height=4.3,units="cm")
+    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriR.png"),
+    #        plot=OrientRplt, dpi=1100, 
+    #        width=8.6, height=4.3,units="cm")
+    ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"AbsOriZ.png"),
+           plot=AbsOrientZplt, dpi=1100, 
+           width=8.6, height=4.3*1.3,units="cm")
+    ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"AbsOriR.png"),
+           plot=AbsOrientRplt, dpi=1100, 
+           width=8.6, height=4.3*1.3,units="cm")
+  }
+  assign(paste0("OrientZplt",L),OrientZplt)
+  assign(paste0("OrientRplt",L),OrientRplt)
+  assign(paste0("AbsOrientZplt",L),AbsOrientZplt)
+  assign(paste0("AbsOrientRplt",L),AbsOrientRplt)
+  
+  
+}
+#   ggplotly(OrientZplt1)
+#     ggplotly(OrientZplt2)
+#   ggplotly(OrientZplt3)
+# ggplotly(OrientRplt1)
+# ggplotly(OrientRplt2)
+# ggplotly(OrientRplt3)
+```
+
+```{r PheDis plt, echo=FALSE}
+ggplotly(AbsOrientZplt1)
+ggplotly(AbsOrientZplt2)
+#ggplotly(AbsOrientZplt3)
+
+ggplotly(AbsOrientRplt1)
+ggplotly(AbsOrientRplt2)
+#ggplotly(AbsOrientRplt3)
+```
+
+
+
+
+## Pi-Pi Redo
+```{r}
+# Define directories and settings
+subdir <- "Pi_int/"
+outputdir <- "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/"
+step_size <- 5  # For smoothing distributions
+pdis <- 4.9  # Parallel distance maximum
+pang <- 0.9  # Parallel angle cutoff
+tdisl <- 5.5  # T-shape distance minimum
+tdish <- 5.8  # T-shape distance maximum
+tang <- 0.23  # T-shape angle
+
+# Load Data
+load_pi_data <- function(outnamepre, firstrun, lastrun) {
+  outname <- paste0(outputdir, outnamepre, "_PiInt_", firstrun, "to", lastrun, ".rda")
+  load(outname)  # Loads PiAnaOut
+  return(PiAnaOut)
+}
+
+
+# Process Pi Distances with customized behavior for 'z' and 'r'
+process_pi_dist <- function(data_name, PiAnaOut, step_size, z_limits = c(-159.5, 159.5), r_limits = c(0.5, 29.5)) {
+  PiDist <- c()  # Initialize an empty list to store processed data for each name
+  
+  for (name in data_name) {
+    if (grepl("Z$", name)) {  # Check if the data is for Z-axis distances
+      # Z-axis data processing
+      data <- cbind(seq(z_limits[1], z_limits[2], 1), PiAnaOut[[name]])
+      PiDistTemp <- as.data.frame(data)
+      colnames(PiDistTemp) <- c("Z", "Freq")  # Rename columns Z and Freq
+      
+      PiDistTemp <- PiDistTemp %>%
+        mutate(Z = abs(Z)) %>%  # Convert Z to positive values
+        group_by(Z, Type = name) %>%  # Group by absolute Z and Type (each data_name entry)
+        summarise(Freq = mean(Freq), .groups = 'drop') 
+      
+      tempdata <- data.frame(Z = numeric(), Type = character(), Freq = numeric())
+      
+      type<-unique(PiDistTemp$Type)
+      
+      # Sort data by Z for consistent intervals
+      type_data <- tempdata[order(tempdata$Z), ]
+      
+      # Loop through in intervals of 5 rows
+      for (i in seq(1, nrow(PiDistTemp), by = step_size)) {
+        # Get the rows for the current interval
+        interval_data <- PiDistTemp[i:min(i + step_size - 1, nrow(PiDistTemp)), ]
+        
+        # Calculate average Z and Freq
+        avg_Z <- mean(interval_data$Z)
+        avg_Freq <- mean(interval_data$Freq)
+        
+        # Append to tempdata
+        tempdata <- rbind(tempdata, data.frame(Z = avg_Z, Type = type, Freq = avg_Freq))
+      }
+      
+      PiDistTemp<-tempdata
+    } else {  # R-axis distances
+      # R-axis data processing
+      data <- cbind(seq(r_limits[1], r_limits[2], 1), PiAnaOut[[name]])
+      PiDistTemp <- as.data.frame(data)
+      colnames(PiDistTemp) <- c("r", "Freq")  # Rename columns r and Freq
+      
+      PiDistTemp <- PiDistTemp %>%
+        mutate(Type = name) %>%
+        group_by(r, Type) %>%
+        summarise(Freq = mean(Freq), .groups = 'drop')  # For R, average Freq without smoothing
+    }
+    
+    # Append the processed PiDistTemp data to PiDist
+    PiDist <- rbind(PiDist, PiDistTemp)
+  }
+  
+  # Determine whether the data is for the Z or r axis based on the first name
+  is_z_axis <- grepl("Z$", data_name[1])
+  
+  # Process Z or r data separately to calculate the "Sum" type
+  if (is_z_axis) {
+    SumDist <- PiDist %>%
+      group_by(Z) %>%  # Group by Z if Z axis data
+      summarise(Freq = sum(Freq), Type = "Sum", .groups = 'drop')
+  } else {
+    SumDist <- PiDist %>%
+      group_by(r) %>%  # Group by r if r axis data
+      summarise(Freq = sum(Freq), Type = "Sum", .groups = 'drop')
+  }
+  
+  # Combine the "Sum" type data back with the main dataset
+  PiDist <- rbind(PiDist, SumDist)
+  
+  return(PiDist)  # Return the processed PiDist data with added "Sum" type
+}
+# Set plot labels and theme
+coorlabz <- labs(x = "Axial Distance from Centre (Å)", y = "Probability Density (xE-4/Å³)")
+coorlabr <- labs(x = "Radial Distance from Centre (Å)", y = "Probability Density (xE-4/Å³)")
+
+# Prepare PiCount
+process_pi_count <- function(PiAnaOut, Type, divisor = 1174) {
+  return(data.frame(
+    Pi = c("T Shape", "Parallel", "Total"),
+    Count = PiAnaOut$count / (divisor * PiAnaOut$Frame),
+    System = Type
+  ))
+}
+
+# Load and Process Data for Each System
+systems <- list(
+  list("pure_27A_cylcssc_fibre_Pi", 10, 29, "100% CSSC"),
+  list("mix_27A_cylcssc_fibre_Pi", 12, 25, "70% CSSC\nOnly CSSC\nRestrained"),
+  list("mix_27A_fibre_Pi", 12, 34, "70% CSSC")
+)
+PltTypenameTypelist <- {
+  c(
+    "100% CSSC",
+    "70% CSSC Only CSSC Restrained",
+    
+    "70% CSSC",
+    
+    "100% CSH"
+  )
+}
+```
+
+
+```{r}
+rylim<-ylim(0,8)
+zylim<-ylim(0,5)
+
+PiCount <- data.frame()
+plots <- list()
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+}
+
+for (i in seq_along(systems)) {
+  PltTypenameType<-PltTypenameTypelist[[i]]
+  sys<-systems[[i]]
+  PiAnaOut <- load_pi_data(sys[[1]], sys[[2]], sys[[3]])
+  PiCount <- rbind(PiCount, process_pi_count(PiAnaOut, sys[[4]]))
+  
+  # Process and create Z and R plots
+  PiDistZ <- process_pi_dist(c("tshapeZ", "ParZ"), PiAnaOut, step_size)
+  PiDistR <- process_pi_dist(c("tshapeR", "ParR"), PiAnaOut, 1)
+  # Update the 'Type' column in PiDistZ
+  PiDistZ <- PiDistZ %>%
+    mutate(Type = recode(Type,
+                         "tshapeZ" = "T-shape",
+                         "ParZ" = "Parallel",
+                         "Sum" = "Total"))
+  # Update the 'Type' column in PiDistZ
+  PiDistR <- PiDistR %>%
+    mutate(Type = recode(Type,
+                         "tshapeR" = "T-shape",
+                         "ParR" = "Parallel",
+                         "Sum" = "Total"))
+  tempZplt<-{
+    ggplot(PiDistZ) +
+      geom_line(aes(x = Z, y = 1E4 *Freq / (pi * 27^2 * PiAnaOut$Frame ), col = Type)) +
+      plttitle +
+      labs(title = PltTypenameType,col="Pi Stacking")+
+      #plttitleguide +
+      plttheme + 
+      coorlabz + 
+      zylim
+  }
+
+  
+  tempRplt<-{
+    ggplot(PiDistR) +
+      geom_line(aes(x = r, y = 1E4 * (Freq / PiAnaOut$Frame) / (((r + 0.5)^2 - (r - 0.5)^2) * pi * 220), col = Type)) +
+      plttitle +
+            labs(title = PltTypenameType)+
+
+      #plttitleguide +
+      plttheme + coorlabr +
+      rylim
+  }
+  if (1) {
+    if (i==1) {
+      ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+             plot=tempZplt, dpi=1100, 
+             width=15, height=10,units="cm")
+    }
+    tempZplt <- tempZplt +
+      theme(legend.position = "none",axis.title.y = element_blank())
+    tempRplt<-tempRplt+
+      theme(legend.position = "none",axis.title.y = element_blank())
+  }
+  assign(paste0("PiDistPltZ",i),tempZplt)
+  assign(paste0("PiDistPltR",i),tempRplt)
+
+}
+
+# Generate contour plots
+if (TRUE) {
+  PiHist_d_ang_Norm <- PiAnaOut$PiHist_d_ang_raw / sum(PiAnaOut$PiHist_d_ang_raw)
+  PiHist_d_ang_Norm[PiHist_d_ang_Norm == 0] <- NA  # Avoid 0 entries for contour
+  
+  plots[[paste0("Contour_", sys[[4]])]] <- plot_ly(
+    type = "contour",
+    y = seq(0.1, 6.9, 0.2),
+    x = seq(0.05, 0.95, 0.1),
+    z = PiHist_d_ang_Norm,
+    colorscale = 'Jet',
+    reversescale = T
+  ) %>%
+    layout(
+      yaxis = list(title = "PHE-PHE distance (Å)", dtick = 0.5, range = c(3.5, 7)),
+      xaxis = list(title = "|cos(φ)|", dtick = 0.1)
+    ) %>%
+    colorbar(font = list(size = 1100 * 3 / 72), thickness = 1100 * 0.25, title = "Pr")
+}
+
+PiCount<-as.data.frame(PiCount)
+colnames(PiCount)<-c("Pi","Count","System")
+PiCount$Count<-as.numeric(PiCount$Count)
+
+System="Unrestrained\n32-Unit\n75% CSSC\n"
+Pi<-c("T Shape","Parallel","Total")
+Count<-c(0.0511,0.0956,0.1467)
+PiCount<-rbind(PiCount,cbind(Pi,Count,System))
+PiCount$Count<-as.numeric(PiCount$Count)
+
+System="Unrestrained\n32-Unit\n100% CSSC\n"
+Pi<-c("T Shape","Parallel","Total")
+Count<-c(0.0519,0.0996,0.1516)
+PiCount<-rbind(PiCount,cbind(Pi,Count,System))
+PiCount$Count<-as.numeric(PiCount$Count)
+
+PiCountPlt<-{
+  ggplot(PiCount)+
+    geom_bar(aes(x=Pi,y=Count,fill=System),stat = "identity",position = "dodge", width = 0.7) +
+    scale_fill_manual(values = c( "70% CSSC\nOnly CSSC\nRestrained"="Red","70% CSSC" = "orange","100% CSSC" = "blue","Unrestrained\n32-Unit\n75% CSSC\n"="Black","Unrestrained\n32-Unit\n100% CSSC\n"="Grey")) +
+    
+    labs(x = "Type of Pi Interaction", y = "Per CSH equivalents",fill="")+
+    plttheme+
+  theme(
+    legend.direction = "vertical",
+    legend.text = element_text(size = 12),
+    legend.key.size = unit(0.4, "cm"),
+    legend.key.spacing.y = unit(0.2, "cm"),
+    legend.key.height = unit(0.4, "cm"),
+    legend.position = "right"
+  )
+}
+ggplotly(PiCountPlt)
+
+if (savept) {
+  ggsave(paste0("Ind_Plt/",subdir,"PiCountPlt.png"),
+         plot=PiCountPlt, dpi=1100, 
+         width=2*8.6, height=2*4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_Z.png"),
+         plot=PiDistPltZ1, dpi=1100,
+         width=8.2, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_R.png"),
+         plot=PiDistPltR1, dpi=1100,
+         width=8.2, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_Z.png"),
+         plot=PiDistPltZ3, dpi=1100,
+         width=8.2, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_R.png"),
+         plot=PiDistPltR3, dpi=1100,
+         width=8.2, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Pi_Dis_Z.png"),
+         plot=PiDistPltZ2, dpi=1100,
+         width=8.2, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Pi_Dis_R.png"),
+         plot=PiDistPltR2, dpi=1100,
+         width=8.2, height=4.3,units="cm")
+}
+
+```
+
+## Hbond Distribution By Type
+
+```{r Hbond Dist Again, echo=FALSE}
+subdir<-"hbond_type_dist/"
+HbondTypeList<-c("AM1","AM1-AM2","AM2")
+pairTypeMapping <- data.frame(
+  Pair = c("P12", "P11", "P22"),
+  Type = c("AM1-AM2", "AM1", "AM2")
+)
+step_size <- 10 #make axial distribution smooth
+
+#HbondDistHist
+#PiCount<-rbind(PiCount,cbind(cbind(c("T Shape","Parallel","Total"),PiAnaOut$count/(1174*PiAnaOut$Frame)),"100% CSSC"))
+#extract and combine dist for axial dir
+HbondCount<-c()
+HbondTypeCount<-c()
+
+
+RdataName<-{c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_hbond_spati_dist_every50_12to29.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_hbond_spati_dist_every50_12to37.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_hbond_spati_dist_every10_12to33.rda"
+)
+}
+
+SysPrefixList<-{c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+}
+
+PltTypenameTypelist<-{c(
+  "70% CSSC\nOnly CSSC\nRestrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+}
+
+for (L in 1:3) {
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  SysPrefix<-SysPrefixList[L]
+  HbondCountTemp<-c()
+  HbondCountTypeTemp<-c()
+  for (coortype in c("R","Z")) {
+    corrtypename<-paste0("Hbond",coortype,"Dist")
+    TempDist<-c()
+    for (i in 1:3) {
+      pair<-names(HbondDistHist)[i] 
+      Type<-pairTypeMapping$Type[pairTypeMapping$Pair == pair]
+      if (coortype=="R") {
+        HbondCountTemp<-rbind(HbondCountTemp,
+                              c(sum(HbondDistHist[[pair]]$Z)/(2*1174*HbondDistHist$Frame),Type,PltTypenameType)
+        )
+        HbondCountTypeTemp<-rbind(HbondCountTypeTemp,cbind(names(HbondDistHist[[pair]]$ResPair),HbondDistHist[[pair]]$ResPair/(2*1174*HbondDistHist$Frame),Type,PltTypenameType)
+        )
+        TempDist<-rbind(TempDist,cbind(cbind(HbondDistHist[[paste0(coortype,"Breaks")]],HbondDistHist[[pair]][[coortype]]),Type)
+        ) 
+      } else {
+        ZTempDist<-cbind(HbondDistHist[[paste0(coortype,"Breaks")]],HbondDistHist[[pair]][[coortype]])
+        ZTempDist<-as.data.frame(ZTempDist)
+        colnames(ZTempDist)<-c("z","Freq")
+        ZTempDist<-as.data.frame(ZTempDist)
+        for (i in 1:2) {
+          ZTempDist[,i]<-as.numeric(ZTempDist[,i])
+        }
+        ZTempDist <- ZTempDist %>%
+          group_by(z = ((z - 1) %/% step_size) * step_size + 1) %>%
+          summarise(Freq = sum(Freq))
+        ZTempDist<-cbind(ZTempDist,Type)
+        TempDist<-rbind(TempDist,ZTempDist)
+      }
+    }
+    TempDist<-as.data.frame(TempDist)
+    for (i in 1:2) {
+      TempDist[,i]<-as.numeric(TempDist[,i])
+    }
+    colnames(TempDist)<-c(coortype,"Freq","Type")
+    if (coortype=="R") {
+      TempDist<-TempDist %>% mutate(Pr=Freq/(220*HbondDistHist$Frame*pi*((R+0.5)^2-(R-0.5)^2)))
+      coorlab<-labs(x="Radial Distance from Centre (Å)",        y = "Probability Density (xE-3/Å³)",title = PltTypenameType, col="Hydrogen Bond")
+      
+      pltlim<-ylim(0,0.002E3)
+    } else {
+      TempDist<-TempDist %>% mutate(Pr=Freq/(step_size*HbondDistHist$Frame*pi*27^2))
+      coorlab<-labs(x="Axial Distance from Centre (Å)",        y = "Number Density (xE-3/Å³)",title = PltTypenameType, col="Type")
+      pltlim<-ylim(0,0.002E3)
+      
+    }
+    pltname<-paste0(SysPrefix,"HbondDistPlt",coortype)
+    CoorDisTempPlt<-{
+      ggplot(TempDist)+
+        geom_line(aes(x=get(coortype),y=Pr*1E3,col=Type))+
+        plttheme+
+        coorlab+
+        pltlim
+    }
+    if (1) {
+      if (L==1&coortype=="R") {
+        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+               plot=CoorDisTempPlt, dpi=1100, 
+               width=20, height=10,units="cm")
+      }
+      CoorDisTempPlt <- CoorDisTempPlt +
+        theme(legend.position = "none",axis.title.y = element_blank())
+    }
+    
+    #print(ggplotly(CoorDisTempPlt))
+    if (savept) {
+      ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_Hbond_",coortype,".png"),
+             plot=CoorDisTempPlt, dpi=1100,
+             width=8.2, height=4.3,units="cm")
+    }
+  }
+  HbondCountTemp<-rbind(HbondCountTemp,c(sum(as.numeric(HbondCountTemp[,1])),"Total",PltTypenameType))
+  HbondCount<-rbind(HbondCount,HbondCountTemp)
+  HbondTypeCount<-rbind(HbondTypeCount,HbondCountTypeTemp)
+  HbondCountTypeTemp<-as.data.frame(HbondCountTypeTemp)
+  colnames(HbondCountTypeTemp)<-c("ResType","Count","Type","System")
+  HbondCountTypeTempPlt<-{
+    ggplot(HbondCountTypeTemp, aes(x = ResType, y = as.numeric(Count), fill = Type)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      scale_fill_manual(values = c("AM1" = "blue", "AM1-AM2" = "orange","AM2"="Red")) +
+      labs(x="Residue Pair",y="Hbond Per Amide",fill=paste0(PltTypenameType,"\nHbond Type"))+
+      plttheme+
+      theme(legend.direction = "vertical"
+            #,legend.position = c(0.1,0.7)
+      )
+  }
+  print(ggplotly(HbondCountTypeTempPlt))
+  if (savept) {
+    ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_Hbond_Count.png"),
+           plot=HbondCountTypeTempPlt, dpi=1100,
+           width=8.6, height=4.3,units="cm")
+  }
+}
+
+HbondCount<-as.data.frame(HbondCount)
+colnames(HbondCount)<-c("Count","Type","System")
+System="Unrestrained\n32-Unit\n75% CSSC\n"
+Type<-c("AM1","AM2","AM1-AM2","Total")
+Count<-c(0.0302,0.0023,0.0668,0.0994)
+HbondCount<-rbind(HbondCount,cbind(Count,Type,System))
+System="Unrestrained\n32-Unit\n100% CSSC\n"
+Type<-c("AM1","AM2","AM1-AM2","Total")
+Count<-c(0.0449,0.019,0.0449,0.1089)
+HbondCount<-rbind(HbondCount,cbind(Count,Type,System))
+
+HbondCountPlt<-{
+  ggplot(HbondCount, aes(x = Type, y = as.numeric(Count), fill = System)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_manual(values = c( "70% CSSC\nOnly CSSC\nRestrained"="Red","70% CSSC" = "orange","100% CSSC" = "blue","Unrestrained\n32-Unit\n75% CSSC\n"="black","Unrestrained\n32-Unit\n100% CSSC\n"="Grey")) +
+    labs(x="Type of Hbond",y="Hbond Per Amide",fill="")+
+    plttheme+
+    theme(legend.direction = "vertical",
+          legend.text = element_text(size = 12),  # Make legend text smaller
+          ,legend.key.size = unit(0.4, "cm"),        legend.key.spacing.y = unit(0.2, "cm"),legend.key.height = unit(0.4, "cm")
+          
+          ,legend.position = "right"
+    )
+}
+
+HbondTypeCount<-as.data.frame(HbondTypeCount)
+colnames(HbondTypeCount)<-c("ResType","Count","Type","System")
+```
+
+```{r Hbond Dist plt}
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"HbondCountPlt.png"),
+         plot=HbondCountPlt, dpi=1100,
+         width=2*8.6, height=2*4.3,units="cm")
+}
+ggplotly(HbondCountPlt)
+```
+
+
+
+
+
+## Hbond Time Series
+
+```{r Hbond Dist Again, echo=FALSE}
+subdir<-"hbond_t_serie/"
+HbondTypeList<-c("AM1","AM1-AM2","AM2")
+pairTypeMapping <- data.frame(
+  Pair = c("P12", "P11", "P22"),
+  Type = c("AM1-AM2", "AM1", "AM2")
+)
+step_size <- 10 #make axial distribution smooth
+
+#HbondDistHist
+#PiCount<-rbind(PiCount,cbind(cbind(c("T Shape","Parallel","Total"),PiAnaOut$count/(1174*PiAnaOut$Frame)),"100% CSSC"))
+#extract and combine dist for axial dir
+HbondCount<-c()
+HbondTypeCount<-c()
+
+step<-50
+RdataName<-{c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_hbond_spati_dist_every50_12to29.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_hbond_spati_dist_every50_12to43.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_hbond_spati_dist_every50_12to33.rda"
+)
+}
+
+SysPrefixList<-{c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+}
+
+PltTypenameTypelist<-{c(
+  "70% CSSC\nOnly CSSC\nRestrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+}
+
+
+
+# Initialize empty lists to store plots
+plots_long <- list()
+plots_original <- list()
+
+for (L in 2:3) {
+  PltTypenameType <- PltTypenameTypelist[L]
+  load(RdataName[L]) # Loads HbondDistHist
+  SysPrefix <- SysPrefixList[L]
+  
+  # Create HbondTser dataframe
+  HbondTser <- as.data.frame(HbondDistHist$dt)
+  colnames(HbondTser)[c(1,2,3)] <- c("frame", "count", "pair")
+  HbondTser$count<-as.numeric(HbondTser$count)/(2*1174)
+  # Update 'frame' for each unique pair
+  for (pair in unique(HbondTser$pair)) {
+    num_frames <- sum(HbondTser$pair == pair)
+    HbondTser$frame[HbondTser$pair == pair] <- seq(0, (num_frames - 1) * step, step)
+  }
+  
+  # Calculate 'time'
+  HbondTser$time <- as.numeric(HbondTser$frame) * 0.02
+  
+  # Convert 'pair' to factor with labels
+  HbondTser$pair <- factor(HbondTser$pair, levels = c("P12", "P11", "P22"),
+                           labels = c("AM1-AM2", "AM1", "AM2"))
+  
+  # Define the hydrogen bond columns
+  hbond_cols <- c("CSHCSH", "CSHCSSC", "CSSCCSSC")
+  
+  # Find which of these columns exist in HbondTser
+  existing_cols <- intersect(hbond_cols, names(HbondTser))
+  
+  # Reshape data to long format, ignoring the original 'count' column
+  HbondTser_long_data <- HbondTser %>%
+    select(-count) %>%
+    pivot_longer(
+      cols = all_of(existing_cols),
+      names_to = "HbondType",
+      values_to = "newcount"
+    ) %>%
+    mutate(
+      # Simplify HbondType labels
+      HbondType = case_when(
+        HbondType == "CSHCSH"   ~ "CSH-CSH",
+        HbondType == "CSHCSSC"  ~ "CSH-CSSC",
+        HbondType == "CSSCCSSC" ~ "CSSC-CSSC",
+        TRUE ~ HbondType
+      ),
+      # Create combined labels with pair and HbondType
+      combined_label = paste(pair, HbondType, sep = " ")
+    )
+  
+  # Create separate plots for each HbondType
+  unique_hbond_types <- unique(HbondTser_long_data$HbondType)
+  
+  for (hbond in unique_hbond_types) {
+    # Filter data for the current HbondType
+    data_subset <- HbondTser_long_data %>% filter(HbondType == hbond)
+    
+    # Define a unique plot name
+    plot_name <- paste0("plot_L", L, "_", gsub("[()]", "", hbond))
+    
+    # Create the plot
+    p <- ggplot(data_subset, aes(x = time, y = as.numeric(newcount)/(2*1174), color = pair)) +
+      geom_line() +
+      labs(
+        x = "Time (ns)",
+        y = paste0(hbond,"\nHbond per Amide"),
+        color = hbond,
+        title = PltTypenameType
+      ) +
+      ylim(0,0.25)+
+      plttheme
+    
+    # Store the plot in the list
+    plots_long[[plot_name]] <- p
+  }
+  
+  # Create the original count plot and save
+  plot_original_name <- paste0("plot_original_L", L)
+  
+  p_original <- ggplot(HbondTser, aes(x = time, y = as.numeric(count), color = pair)) +
+    geom_line() +
+    labs(
+      x = "Time (ns)",
+      y = "Hbond per Amide",
+      color = "Hydrogen Bond",
+      title = PltTypenameType
+    ) +
+          ylim(0,0.25)+
+
+    plttheme
+  
+  # Store the original plot in the list
+  plots_original[[plot_original_name]] <- p_original
+}
+```
+
+```{r Hbond T plt}
+# Convert and print each long_data plot using ggplotly
+if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+       plot=plots_original$plot_original_L2, dpi=1100, 
+       width=20, height=10,units="cm")
+for (plot_name in names(plots_long)) {
+  plotly_plot <- ggplotly(plots_long[[plot_name]])
+  print(plotly_plot)
+  ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_",plot_name,".png"),
+           plot=plots_long[[plot_name]]+theme(legend.position = "none"), dpi=1100,
+           width=8.6*2, height=2*4.3,units="cm")
+}
+
+# Convert and print each original count plot using ggplotly
+for (plot_name in names(plots_original)) {
+  plotly_plot <- ggplotly(plots_original[[plot_name]])
+  print(plotly_plot)
+    ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_",plot_name,".png"),
+           plot=plots_original[[plot_name]]+theme(legend.position = "none"), dpi=1100,
+           width=8.6*2, height=2*4.3,units="cm")
+}
+```
+
+## Hbond Time Series TIP3
+
+```{r Hbond TIP3 Time, echo=FALSE}
+subdir<-"hbond_t_serie_tip3/"
+HbondTypeList<-c("AM1","AM1-AM2","AM2")
+pairTypeMapping <- data.frame(
+  Pair = c("P12", "P11", "P22"),
+  Type = c("AM1-AM2", "AM1", "AM2")
+)
+step_size <- 10 #make axial distribution smooth
+
+#HbondDistHist
+#PiCount<-rbind(PiCount,cbind(cbind(c("T Shape","Parallel","Total"),PiAnaOut$count/(1174*PiAnaOut$Frame)),"100% CSSC"))
+#extract and combine dist for axial dir
+HbondCount<-c()
+HbondTypeCount<-c()
+maindir<-"/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/"
+maindir<-"/Users/song/Documents/Research/HPC/forairplane/"
+step<-50
+RdataName<-{c(
+  paste0(maindir,"mix_27A_cylcssc_fibre_hbond_spati_dist_TIP3_every50_12to36.rda")
+  ,
+  paste0(maindir,"mix_27A_fibre_hbond_spati_dist_TIP3_every50_12to40.rda")
+  ,
+  paste0(maindir,"pure_27A_fibre_hbond_spati_dist_TIP3_every50_12to33.rda")
+)
+}
+
+SysPrefixList<-{c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+}
+
+PltTypenameTypelist<-{c(
+  "70% CSSC\nOnly CSSC\nRestrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+}
+
+
+
+# Initialize empty lists to store plots
+plots_long <- list()
+plots_original <- list()
+hbondcount_tip3<-c()
+for (L in 1:3) {
+  PltTypenameType <- PltTypenameTypelist[L]
+  load(RdataName[L]) # Loads HbondDistHist
+  SysPrefix <- SysPrefixList[L]
+  
+  # Create HbondTser dataframe
+  HbondTser <- as.data.frame(HbondDistHist$dt)
+  #Mindex: AM1 or AM2?
+  colnames(HbondTser) <- c("frame", "count", "res","Mindex")
+  if (length(unique(HbondTser$res))==2) {
+    CSHsum=352
+    CSSCsum=411
+  } else {
+    CSSCsum=411+352/2
+  }
+  # Update 'frame' for each unique pair
+  for (res in unique(HbondTser$res)) {
+    for (Mindex in unique(HbondTser$Mindex)) {
+    num_frames <- sum(HbondTser$res == res & HbondTser$Mindex == Mindex)
+    HbondTser$frame[which(HbondTser$res == res & HbondTser$Mindex == Mindex)] <- seq(0, (num_frames - 1) * step, step)
+    }
+  }
+  
+  # Calculate 'time'
+  HbondTser$time <- as.numeric(HbondTser$frame) * 0.02
+  
+ 
+  # Reshape data to long format, ignoring the original 'count' column
+  HbondTser <- HbondTser %>%
+    
+    mutate(
+      
+      # Create combined labels with pair and HbondType
+      combined_label = paste(res, Mindex, sep = "-")
+    )
+  
+
+  # Create the original count plot and save
+  plot_original_name <- paste0("plot_original_L", L)
+      #per amide base
+
+  p_original <- ggplot(HbondTser, aes(x = time, y = as.numeric(count)/(2*1174), color = combined_label)) +
+    geom_line() +
+    labs(
+      x = "Time (ns)",
+      y = "Hbond per Amide",
+      color = "Hydrogen Bond\nwith Water",
+      title = PltTypenameType
+    ) +
+    ylim(0,0.7)+
+    plttheme
+  
+  # Store the original plot in the list
+  plots_original[[plot_original_name]] <- p_original
+  # Step 1: Sum counts for each unique frame and Mindex
+summed_df <- HbondTser %>%
+  group_by(frame, Mindex) %>%
+  summarise(total_count = sum(as.numeric(count)), .groups = 'drop')
+
+# Step 2: Calculate average count and standard error for each Mindex
+average_df <- summed_df %>%
+  group_by(Mindex) %>%
+  summarise(
+    avg_count = mean(total_count) / (1174 * 2),
+    se_count = sd(total_count) / sqrt(n()) / (1174 * 2),  # Standard Error
+    .groups = 'drop'
+  )
+
+# Bind system name and set column names
+hbondcount_tip3_temp <- cbind(average_df, PltTypenameType)
+colnames(hbondcount_tip3_temp) <- c("AM", "count", "se", "sys")
+
+# Initialize hbondcount_tip3 if it doesn't exist
+if (!exists("hbondcount_tip3")) {
+  hbondcount_tip3 <- hbondcount_tip3_temp
+} else {
+  hbondcount_tip3 <- rbind(hbondcount_tip3, hbondcount_tip3_temp)
+}
+
+
+}
+# Convert count and se back to numeric (if needed)
+hbondcount_tip3$count <- as.numeric(hbondcount_tip3$count)
+hbondcount_tip3$se <- as.numeric(hbondcount_tip3$se)
+
+  # Step 3: Add "Total" row for each unique sys
+for (sys in unique(hbondcount_tip3$sys)) {
+  total_count <- sum(as.numeric(hbondcount_tip3$count[hbondcount_tip3$sys == sys]))
+  total_se <- sqrt(sum(as.numeric(hbondcount_tip3$se[hbondcount_tip3$sys == sys])^2))  # Propagate SE for summation
+  
+  hbondcount_tip3 <- rbind(hbondcount_tip3, c("Total", total_count, total_se, sys))
+}
+
+
+
+
+Hbond_count_plt_TIP3<-{
+  ggplot(hbondcount_tip3, aes(x = AM, y = as.numeric(count), fill = sys)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Bar plot
+  geom_errorbar(aes(ymin = as.numeric(count) - as.numeric(se), 
+                    ymax = as.numeric(count) + as.numeric(se)), 
+                position = position_dodge(width = 0.9),  # Align error bars with bars
+                width = 0.2) +  # Error bar width
+      scale_fill_manual(values = c( "70% CSSC\nOnly CSSC\nRestrained"="Red","70% CSSC" = "orange","100% CSSC" = "blue"
+                                    #,"Unrestrained\n32-Unit\n75% CSSC\n"="black","Unrestrained\n32-Unit\n100% CSSC\n"="Grey"
+                                    )) +
+
+    labs(x="Type of Hbond with Water",y="Hbond Per Amide",fill="")+
+     plttheme+
+      theme(legend.direction = "vertical",
+          ,legend.key.size = unit(0.4, "cm"),
+          legend.key.spacing.y = unit(0.2, "cm"),
+          legend.key.height = unit(0.4, "cm"),
+          legend.position = "right"
+    )
+}
+```
+
+```{r Hbond T TIP3 plt}
+# Convert and print each long_data plot using ggplotly
+if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+       plot=plots_original$plot_original_L2, dpi=1100, 
+       width=20, height=10,units="cm")
+# Convert and print each original count plot using ggplotly
+for (plot_name in names(plots_original)) {
+  plotly_plot <- ggplotly(plots_original[[plot_name]])
+  print(plotly_plot)
+  ggsave(paste0("Ind_Plt/",subdir,plot_name,".png"),
+           plot=plots_original[[plot_name]], dpi=1100,
+           width=8.6*2, height=2*4.3*1.3,units="cm")
+}
+ggsave(paste0("Ind_Plt/",subdir,"HbondCount_TIP3.png"),
+           plot=Hbond_count_plt_TIP3, dpi=1100,
+           width=8.6*2, height=2*4.3*1.3,units="cm")
+ggplotly(Hbond_count_plt_TIP3)
+
+```
+
+## Hbond Distribution By Type TIP3
+
+```{r Hbond Dist Again, echo=FALSE}
+subdir<-"hbond_type_dist_tip3/"
+HbondTypeList<-c("AM1","AM1-AM2","AM2")
+
+step_size <- 10 #make axial distribution smooth
+
+
+
+RdataName<-{c(
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_hbond_spati_dist_TIP3_every50_12to33.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_hbond_spati_dist_TIP3_every50_12to33.rda"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_hbond_spati_dist_TIP3_every50_12to32.rda"
+)
+}
+
+SysPrefixList<-{c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+}
+
+PltTypenameTypelist<-{c(
+  "70% CSSC Only CSSC Restrained"
+  ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+}
+plots_all <- list()
+
+
+plots_all <- list()
+plots_resname <- list()
+plots_AMindex <- list()
+scaleratio<-1E3
+fillschemeall<-scale_fill_gradientn(
+  colors = c("blue", "yellow", "red", "black"),
+  values = scales::rescale(c(0, 0.005, 0.01, 0.05)*scaleratio, to = c(0, 1)),  # Force fixed values
+  limits = c(0, 0.05)*scaleratio,  # Ensures the color scale is locked at your range
+  na.value = "transparent"
+)
+resscaleratio<-0.6
+fillschemeres<-scale_fill_gradientn(
+  colors = c("blue", "yellow", "red", "black"),
+  values = scales::rescale(c(0, 0.005, 0.01, 0.05)*resscaleratio, to = c(0, 1)),  # Force fixed values
+  limits = c(0, 0.05*resscaleratio),  # Ensures the color scale is locked at your range
+  na.value = "transparent"
+)
+amscaleratio<-0.6
+fillschemeam<-scale_fill_gradientn(
+  colors = c("blue", "yellow", "red", "black"),
+  values = scales::rescale(c(0, 0.005, 0.01, 0.05)*amscaleratio, to = c(0, 1)),  # Force fixed values
+  limits = c(0, 0.05*amscaleratio),  # Ensures the color scale is locked at your range
+  na.value = "transparent"
+)
+legendtheme<-theme(
+            legend.direction = "horizontal",
+            #legend.box.margin = margin(t = -10),
+            legend.key.width  = unit(1.5,"cm"),
+            legend.key.height   = unit(0.5,"cm"),
+            legend.position = "top",
+      )
+for (L in 1:3) {
+  PltTypenameType <- PltTypenameTypelist[L]
+  load(RdataName[L]) # Commented out as data is already loaded
+  SysPrefix <- SysPrefixList[L]
+
+  # Calculate bin centers
+  Z_centers <- HbondDistHist$ZBreak
+  R_centers <- HbondDistHist$RBreaks
+
+  # 1. Sum all 2D histograms together
+  sum_ZR_all <- Reduce("+", lapply(HbondDistHist[intersect(c("CSSC", "CSH"), names(HbondDistHist))], function(resname) {
+    Reduce("+", lapply(resname[c("AM1", "AM2")], function(am) am$ZR))
+  }))
+
+  # Convert to data frame and normalize
+  sum_ZR_all_df <- expand.grid(Z = Z_centers, R = R_centers)
+  sum_ZR_all_df$Count <- as.vector(sum_ZR_all)
+
+  sum_ZR_all_df <- sum_ZR_all_df %>%
+    mutate(Z = abs(Z)) %>%
+    group_by(Z, R) %>%
+    summarise(Count = mean(Count, na.rm = TRUE), .groups = 'drop') %>%
+    mutate(Pr = Count / (((R + 0.5)^2 - (R - 0.5)^2) * pi * HbondDistHist$Frame))
+
+  sum_ZR_all_df$Pr[which(sum_ZR_all_df$Pr == 0)] <- NA
+
+  # Create plot
+  plots_all[[PltTypenameType]] <- ggplot(sum_ZR_all_df, aes(x = Z, y = R, fill = Pr*scaleratio)) +
+    geom_tile() +
+    fillschemeall+
+    labs(title = PltTypenameType, x = "Axial Distance from Centre (Å)", 
+         y = "Radial Distance from Centre (Å)", fill = "Probability Density (xE-3/Å³)") +
+    plttheme+
+    legendtheme
+
+  # 2. Sum AM1 & AM2 for each resname (CSH/CSSC)
+  sum_ZR_resname <- lapply(HbondDistHist[intersect(c("CSSC", "CSH"), names(HbondDistHist))], function(resname) {
+    Reduce("+", lapply(resname[c("AM1", "AM2")], function(am) am$ZR))
+  })
+
+  for (resname in names(sum_ZR_resname)) {
+    df <- expand.grid(Z = Z_centers, R = R_centers)
+    df$Count <- as.vector(sum_ZR_resname[[resname]])
+
+    df <- df %>%
+      mutate(Z = abs(Z)) %>%
+      group_by(Z, R) %>%
+      summarise(Count = mean(Count, na.rm = TRUE), .groups = 'drop') %>%
+      mutate(Pr = Count / (((R + 0.5)^2 - (R - 0.5)^2) * pi * HbondDistHist$Frame))
+
+    df$Pr[which(df$Pr == 0)] <- NA
+
+    plots_resname[[paste0(PltTypenameType, "_", resname)]] <- ggplot(df, aes(x = Z, y = R, fill = Pr)) +
+      geom_tile() +
+      fillschemeres+
+      labs(title = PltTypenameType, x = "Axial Distance from Centre (Å)", 
+           y = "Radial Distance from Centre (Å)", fill = paste(resname, "Probability Density")) +
+      plttheme
+  }
+
+  # 3. Sum CSH/CSSC for each AM1 & AM2
+  sum_ZR_AMindex <- list(
+    AM1 = HbondDistHist$CSSC$AM1$ZR + ifelse("CSH" %in% names(HbondDistHist),HbondDistHist$CSH$AM1$ZR,0),
+    AM2 = HbondDistHist$CSSC$AM2$ZR + ifelse("CSH" %in% names(HbondDistHist),HbondDistHist$CSH$AM2$ZR,0)
+  )
+
+  for (am in names(sum_ZR_AMindex)) {
+    df <- expand.grid(Z = Z_centers, R = R_centers)
+    df$Count <- as.vector(sum_ZR_AMindex[[am]])
+
+    df <- df %>%
+      mutate(Z = abs(Z)) %>%
+      group_by(Z, R) %>%
+      summarise(Count = mean(Count, na.rm = TRUE), .groups = 'drop') %>%
+      mutate(Pr = Count / (((R + 0.5)^2 - (R - 0.5)^2) * pi * HbondDistHist$Frame))
+
+    df$Pr[which(df$Pr == 0)] <- NA
+
+    plots_AMindex[[paste0(PltTypenameType, "_", am)]] <- ggplot(df, aes(x = Z, y = R, fill = Pr)) +
+      geom_tile() +
+      fillschemeam+
+      labs(title = PltTypenameType, x = "Axial Distance from Centre (Å)", 
+           y = "Radial Distance from Centre (Å)", fill = paste(am, "Probability Density")) +
+      plttheme
+  }
+}
+
+
+```
+
+```{r Hbond Dist plt}
+# Convert and print all plots using ggplotly
+#lapply(plots_all, function(p) print(ggplotly(p)))
+#lapply(plots_resname, function(p) print(ggplotly(p)))
+#lapply(plots_AMindex, function(p) print(ggplotly(p)))
+
+# Create necessary directories
+dirs <- c("All", "CSH_CSSC", "AMIDE")
+for (dir in dirs) {
+  full_path <- paste0("Ind_Plt/", subdir, "/", dir)
+  if (!dir.exists(full_path)) {
+    dir.create(full_path, recursive = TRUE)
+  }
+}
+
+# Save legend
+ggsave(paste0("Ind_Plt/", subdir, "/legend.png"),
+       plot = plots_all[[1]]+
+         guides(fill = guide_colorbar(title.theme = element_text(margin = margin(r = 15)))), dpi = 1100,
+       width = 20, height = 10, units = "cm")
+
+
+# Save probability density plots in respective subdirectories and print using ggplotly
+for (i in 1:length(names(plots_all))) {
+  plotly_plot <- ggplotly(plots_all[[i]])
+  print(plotly_plot)
+  ggsave(paste0("Ind_Plt/", subdir, "/All/", i, ".png"),
+         plot = plots_all[[i]]+      theme(legend.position = "none",axis.title.y = element_blank())
+, dpi = 1100,
+         width = 8.6*2 , height = 4.3*2, units = "cm")
+  }
+
+ for (i in 1:length(names(plots_resname))) {
+  plotly_plot <- ggplotly(plots_resname[[i]])
+  print(plotly_plot)
+  ggsave(paste0("Ind_Plt/", subdir, "/CSH_CSSC/", i, ".png"),
+         plot = plots_resname[[i]], dpi = 1100,
+         width = 8.6 * 2, height = 2 * 4.3 * 1.3, units = "cm")
+}
+
+for (i in 1:length(names(plots_AMindex))) {
+  plotly_plot <- ggplotly(plots_AMindex[[i]])
+  print(plotly_plot)
+  ggsave(paste0("Ind_Plt/", subdir, "/AMIDE/", i, ".png"),
+         plot = plots_AMindex[[i]], dpi = 1100,
+         width = 8.6 * 2, height = 2 * 4.3 * 1.3, units = "cm")
+}
+
+```
+
+
+
+## Contact map
+```{r}
+subdir <- "contact_map/"
+RdataName <- {
+  c(
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_contact_map12to43.rda",
+    "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_contact_map70to103.rda",
+    "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_contact_map12to33.rda",
+    "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_50mM_contact_map12to18.rda",
+    "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/CSH_27A_contact_map3to09.rda")
+}
+
+PltTypenameTypelist <- {
+  c(
+    "70% CSSC Fiber",
+    "32-CSX 75% CSSC Unrestrained",
+    
+    "100% CSSC Fiber",
+    
+    "32-CSX 100% CSSC Unrestrained",
+    "100% CSH Fiber"
+    
+  )
+}
+numCSHList<-c(1174,32,1174,32,1174)
+ordered_levels <- c("AM1OC", "AM1aC",  "AM1O", "AM1N",  "AM2OC", "AM2O", "AM2N","PHEaC", "PHEbC", "PHEgC", "PHEdC",  "THIC","S")
+
+for (L in seq(1,5,1)) {
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #
+  numCSH<-numCSHList[L]
+  # contactmatrix[[1]]<-contactmatrix[[1]]/(contactmatrix[[2]]*numCSH)
+  contactmatrix[[1]]<-contactmatrix[[1]]/(sum(contactmatrix[[1]]))
+  
+  for (i in seq_along(colnames(contactmatrix[[1]]))) {
+    for (j in i:length(colnames(contactmatrix[[1]]))) {
+      if (contactmatrix[[1]][i,j]==0) {
+        contactmatrix[[1]][i,j]=contactmatrix[[1]][j,i]
+      } else if (contactmatrix[[1]][j,i]==0) {
+        contactmatrix[[1]][j,i]=contactmatrix[[1]][i,j]
+      }
+    }
+  } 
+  # Convert matrix to a long format DataFrame for ggplot
+  contact_long <- as.data.frame(as.table(as.matrix(contactmatrix[[1]])))
+  # Adjust values based on condition for "PHE" in row or column names
+  contact_long$Freq <- ifelse(grepl("PHE", contact_long$Var1) | grepl("PHE", contact_long$Var2),
+                              contact_long$Freq / 2,
+                              contact_long$Freq)
+  # Convert Var1 and Var2 to factors with specified levels
+  contact_long$Var1 <- factor(contact_long$Var1, levels = ordered_levels)
+  contact_long$Var2 <- factor(contact_long$Var2, levels = ordered_levels)
+  
+  # Convert Var1 and Var2 to factors, then to numeric for positioning
+  contact_long <- contact_long %>%
+    mutate(Var1_num = as.numeric(factor(Var1, levels = ordered_levels)),
+           Var2_num = as.numeric(factor(Var2, levels =ordered_levels)))
+  
+  # Determine the numeric positions of "AM1N" and "AM2OC"
+  start_pos <- min(contact_long$Var1_num[contact_long$Var1 == "AM1OC"])
+  # Define end positions and colors
+  end_positions <- list("AM1N" = "green", "AM2N" = "red", "PHEdC" = "blue")
+  end_positions <- list("AM1N" = "black", "AM2N" = "black", "PHEdC" = "black")
+  
+  contactplttemp <- {
+    ggplot(contact_long, aes(x = Var1_num, y = Var2_num, fill = Freq)) +
+      geom_tile() +
+      scale_fill_gradientn(colors = c("blue", "yellow", "red"),
+                           limits = c(0, 0.043),
+                           na.value = "transparent"
+      ) +
+      # Draw multiple horizontal and vertical lines for each end position
+      lapply(names(end_positions), function(end_name) {
+        end_pos <- max(contact_long$Var1_num[contact_long$Var1 == end_name])
+        color <- end_positions[[end_name]]
+        list(
+          # Horizontal line along top edge of start_pos row to each end position
+          geom_segment(x = start_pos - 0.5, xend = end_pos + 0.5, 
+                       y = end_pos + 0.5, yend = end_pos + 0.5,
+                       color = color, size = 0.5),
+          # Vertical line along the left edge of start_pos column to each end position
+          geom_segment(x = end_pos + 0.5, xend = end_pos + 0.5, 
+                       y = start_pos - 0.5, yend = end_pos + 0.5,
+                       color = color, size = 0.5)
+        )
+      }) +
+      # Convert back to original labels for cleaner axis labels
+      scale_x_continuous(breaks = contact_long$Var1_num, labels = contact_long$Var1) +
+      scale_y_continuous(breaks = contact_long$Var2_num, labels = contact_long$Var2) +
+      plttheme +
+      labs(x = "Atom", y = "Atom", fill = "Pr", title = PltTypenameType) +
+      theme(axis.text.x = element_text(size = 10,angle = 45, hjust = 1),
+            axis.text.y = element_text(size = 10,angle = 45, hjust = 1),
+            legend.text = element_text(size = 12),
+            
+            legend.position = "none"
+      ) +
+      coord_fixed(ratio = 1)
+  }
+  contactplttemp
+  assign(paste0("contact_plt",L),contactplttemp)
+}
+```
+
+```{r}
+ggplotly(contact_plt1)
+ggplotly(contact_plt2)
+ggplotly(contact_plt3)
+ggplotly(contact_plt4)
+
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"MixFibercontact_atom.png"),
+         plot=contact_plt1, dpi=1100, 
+         width=8.6*2, height=4.3*2,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Mixcontact_atom.png"),
+         plot=contact_plt2, dpi=1100, 
+         width=8.6*2, height=4.3*2,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"PureFibercontact_atom.png"),
+         plot=contact_plt3, dpi=1100, 
+         width=8.6*2, height=4.3*2,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Purecontact_atom.png"),
+         plot=contact_plt4+
+           theme(legend.position = "right",   
+                 legend.direction = "horizontal",
+                 
+                 legend.key.width = unit(0.8,"cm"),
+
+                 legend.title = element_text(size = 12),
+                 legend.key.height = unit(0.4,"cm")
+           ), dpi=1100, 
+         width=30, height=4.3*2,units="cm")
+}
+getwd()
+
+```
+
+
+## Free energy of solvation (colvar distribution)
+
+- A single CSSC/CSH molecule is solvated in a 40 x 40 x 40 Å TIP3 water box.
+- Empty spaces of 40 Å 
+-- added in both directions (±) along the x-axis.
+- The centers of mass (COM) of both the water and the CSSC/CSH are considered in colvar module
+- Each window is equalibrated for 2 nanoseconds.
+-- The CSSC is pulled from the center of the water box in both directions (±) along the x-axis using harmonic function in colvar F = 10 kcal/mol/Å² and equlibrated for 2 ns
+-- TIP3 water molecules are constrained within the water box using a TCLBC script, F = 2 kcal/mol/Å².
+- The endpoints of each 2 ns simulation are used as starting points for umbrella sampling.
+
+```{r PMF Hist, echo=FALSE}
+syslist<-c("CSH",
+           "CSSC"
+)
+for (sysname in syslist) {
+  # Define the main directory
+  main_dir <- paste0("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH_CSSC_PMF_Sol/",sysname,"_PMF/")
+  
+  # Get a list of all subdirectories
+  subdirs <- list.dirs(main_dir, recursive = FALSE, full.names = TRUE)
+  # Function to check if a string is numeric (including negative numbers)
+  is_numeric <- function(x) {
+    grepl("^-?\\d+$", basename(x))
+  }
+  
+  # Filter subdirectories to keep only numeric ones
+  numeric_subdirs <- subdirs[sapply(subdirs, is_numeric)]
+  
+  # Initialize an empty data frame to store all histogram data
+  all_hist_data <- data.frame()
+  
+  # Set bin width
+  bin_width <- 0.2
+  
+  # Loop through each subdirectory to find and read the "Run.colvars.traj" file
+  for (subdir in numeric_subdirs) {
+    # Get the list of files in the subdirectory
+    files <- list.files(subdir, pattern = "Run.colvars.traj$", full.names = TRUE)
+    
+    # Check if there is more than one file
+    if (length(files) > 1) {
+      stop(paste("More than one 'Run.colvars.traj' file found in subdirectory:", subdir))
+    }
+    
+    # If a file is found, read it
+    if (length(files) == 1) {
+      file <- files[1]
+      data <- read.table(file, comment.char = "#", header = FALSE)
+      
+      # Create histogram data
+      hist_data <- hist(as.numeric(data[, 2]), breaks = seq(-50, 50, by = bin_width), plot = FALSE)
+      
+      # Create a data frame from histogram data
+      df_hist <- data.frame(x = hist_data$mids, y = hist_data$counts/sum(hist_data$counts))
+      
+      # Add a column with the name of the subdirectory
+      df_hist$subdir <- basename(subdir)
+      
+      # Append the histogram data to the all_hist_data dataframe
+      all_hist_data <- rbind(all_hist_data, df_hist)
+    }
+  }
+  file_path <- paste0("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH_CSSC_PMF_Sol/",sysname,"_PMF/traj_files/pmf.dat")
+  # Read the data
+  pmfdata <- read.table(file_path, header = TRUE, na.strings = "nan")
+  colnames(pmfdata)<-c("d","pmf",seq_along(colnames(pmfdata))[-c(1,2)])
+  pmfdata$pmf<-max(all_hist_data$y)/max(pmfdata$pmf)*pmfdata$pmf
+  
+  pltname<-paste0(sysname,"_US_Hist_Plt")
+  # Plot the histogram data using ggplot2
+  assign(pltname,ggplot() +
+           geom_line(data=all_hist_data, aes(x = x, y = y, color = subdir))+
+           geom_line(data=pmfdata, aes(x = d, y = pmf))+
+           labs(title = sysname,
+                x = "Distance from Center (Å)",
+                y = "Frequency",
+                color = "Subdirectory")  +
+           xlim(-40,40)
+  )
+}
+
+```
+
+```{r PMF plt,warning=FALSE}
+ggplotly(CSH_US_Hist_Plt)
+ggplotly(CSSC_US_Hist_Plt)
+
+```
+
+## Free energy of solvation (PMF)
+
+
+- Each window in the umbrella sampling runs for 10 ns, with the final 7.5 ns used for potential of mean force (PMF) calculation, F = 5 kcal/mol/Å².
+
+```{r PMF, echo=FALSE,warning=FALSE}
+subdir<-"pmf/"
+pmfdata<-c()
+syslist<-c("CSH",
+           "CSSC")
+for (sysname in syslist) {
+  file_path <- paste0("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/PMF_sol/CSH_CSSC_PMF_Sol/",sysname,"_PMF/traj_files/pmf.dat")
+  # Read the data
+  data <- read.table(file_path, header = TRUE, na.strings = "nan")
+  colnames(data)<-c("d","pmf","error",seq_along(colnames(data))[-c(1,2,3)])
+  data$sys<-sysname
+  data$pmf<-data$pmf-max(data$pmf)#mean(data$pmf[which(data$d>-0.5 & data$d<0.5)])
+  pmfdata<-rbind(pmfdata,data)
+}
+pmfdata$pmf[which(pmfdata$sys=="CSSC")]<-pmfdata$pmf[which(pmfdata$sys=="CSSC")]/2
+Solvation_pmf_plt<- {
+  ggplot(pmfdata, aes(x = d, y = pmf,col=sys)) +
+    geom_line() +
+    labs(col="Molecules",x = "Distance from the Center of Water Box (Å)", y = "Potential Mean Force\n(kcal/mol of CSH equivalent)") +
+    plttheme+
+    theme(legend.position = c(0.5,0.8),legend.direction = "vertical")
+}
+# Plot the data
+ggplotly(Solvation_pmf_plt)
+if (savept) {
+  ggsave(paste0("Ind_Plt/",subdir,"1D Free Energy of Solvation.png"),
+         plot=Solvation_pmf_plt, dpi=1100, 
+         width=2*8.6, height=2*4.3,units="cm")
+}
+```
+
+## Confrontational Distribution in Umbrella Sampling
+
+- Confrontational distribution of CSSC in each window 
+-- as defined by the distance between the first carbon in each PHE ring 
+- Different conformations were sampled in different phases
+
+```{r PMF PHE Dist, echo=FALSE}
+sysname<-"CSSC"
+load(paste0("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH_CSSC_PMF_Sol/",sysname,"_PMF/PMF_sampling_PHE_dis.rda"))
+dismatrix[dismatrix ==0] <- NA
+
+PMF_PheDisDensityPlt<-{plot_ly( 
+  y = seq(-40,40,1), 
+  x = seq(0,19,1), 
+  z = dismatrix/500, 
+  type = "surface", 
+  #type = "scatter3d", 
+  #  mode = "markers",
+  # marker = list(size = 10)
+  #     y = as.numeric(PheDisOut$AbsOrientBreaks), 
+  #     x =as.numeric(PheDisOut$RBreaks) , 
+  #     z = as.matrix(t(abs_hist_ang_r)),
+  colorscale='Jet',
+  #     reversescale =F#,
+  #     #autocontour = F, 
+  #     #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  cmin = 0,
+  cmax = 1,
+  colorbar = list(
+    title = "Density"
+    #,    titleside = "right"
+  )
+) %>% layout(
+  scene = list(
+    yaxis = list(title = "Distance from<br>the Center of<br>Water Box (Å)"),
+    xaxis = list(title = "PHE PHE<br>distance (Å)"),
+    zaxis = list(title = "Density")
+  )
+)
+}
+PMF_PheDisDensityPlt
+```
+
+
+## 2D Umbrella Sampling
+
+- Same setup as 1D US
+- End state of US in each 1D US equlibration window was used as starting points for sampling in the 2d dimention
+- Each window for PHE-PHE distance is equalibrated for 2 nanoseconds.
+-- First carbons in the ring are pulled pulled to a distance between 5 to 14 Å using harmonic function in colvar F = 10 kcal/mol/Å². and equlibrated for 2ns
+-- TIP3 water molecules are constrained within the water box using a TCLBC script, F = 2 kcal/mol/Å².
+- The endpoints of each 2 ns simulation are used as starting points for umbrella sampling.
+
+
+```{r PMF Hist 2D, echo=FALSE}
+syslist<-c(#"CSH",
+  "CSSC"
+)
+COMdisList<-c(10,15,20,25,30)
+for (sysname in syslist) {
+  for (COMdis in COMdisList) {
+    # Define the main directory
+    main_dir <- paste0("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH_CSSC_PMF_Sol/",sysname,"_PMF/2D/",COMdis,"/",sysname,"_PMF_2D/")
+    
+    # Get a list of all subdirectories
+    subdirs <- list.dirs(main_dir, recursive = FALSE, full.names = TRUE)
+    # Function to check if a string is numeric (including negative numbers)
+    is_numeric <- function(x) {
+      grepl("^-?\\d+$", basename(x))
+    }
+    
+    # Filter subdirectories to keep only numeric ones
+    numeric_subdirs <- subdirs[sapply(subdirs, is_numeric)]
+    
+    # Initialize an empty data frame to store all histogram data
+    all_hist_data <- data.frame()
+    
+    # Set bin width
+    bin_width <- 0.2
+    
+    # Loop through each subdirectory to find and read the "Run.colvars.traj" file
+    for (subdir in numeric_subdirs) {
+      # Get the list of files in the subdirectory
+      files <- list.files(subdir, pattern = "Run.colvars.traj$", full.names = TRUE)
+      
+      # Check if there is more than one file
+      if (length(files) > 1) {
+        stop(paste("More than one 'Run.colvars.traj' file found in subdirectory:", subdir))
+      }
+      
+      # If a file is found, read it
+      if (length(files) == 1) {
+        file <- files[1]
+        data <- read.table(file, comment.char = "#", header = FALSE)
+        
+        # Create histogram data
+        hist_data <- hist(as.numeric(data[, 3]), breaks = seq(2, 15, by = bin_width), plot = FALSE)
+        
+        # Create a data frame from histogram data
+        df_hist <- data.frame(x = hist_data$mids, y = hist_data$counts/sum(hist_data$counts))
+        
+        # Add a column with the name of the subdirectory
+        df_hist$subdir <- basename(subdir)
+        
+        # Append the histogram data to the all_hist_data dataframe
+        all_hist_data <- rbind(all_hist_data, df_hist)
+      }
+    }
+    pltname<-paste0(sysname,"_2DUS_Hist_Plt_",COMdis)
+    # Plot the histogram data using ggplot2
+    assign(pltname,ggplot(all_hist_data, aes(x = x, y = y, color = subdir)) +
+             geom_line() +
+             labs(title = paste(sysname,"at", COMdis, "Å from center"),
+                  x = "PHE-PHE Distance (Å)",
+                  y = "Density",
+                  color = "Subdirectory")  +
+             xlim(0,15)
+    )
+  }
+}
+ggplotly(CSSC_2DUS_Hist_Plt_10)
+ggplotly(CSSC_2DUS_Hist_Plt_15)
+ggplotly(CSSC_2DUS_Hist_Plt_20)
+ggplotly(CSSC_2DUS_Hist_Plt_25)
+ggplotly(CSSC_2DUS_Hist_Plt_30)
+
+```
+
+## 2D Umbrella Sampling
+
+- Each window in the umbrella sampling runs for 10 ns, with the final 7.5 ns used for potential of mean force (PMF) calculation, F = 5 kcal/mol/Å².
+- Confromational preference doesn't play a role in free energy of solvation 
+
+
+```{r PMF 2D CSSC, echo=FALSE,warning=FALSE}
+pmfdata<-c()
+syslist<-c(#"CSH",
+  "CSSC")
+for (sysname in syslist) {
+  file_path <- paste0("/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/PMF_sol/CSH_CSSC_PMF_Sol/",sysname,"_PMF/2D/traj_files/pmf.dat")
+  # Read the data
+  pmfdata2d <- read.table(file_path, header = TRUE, na.strings = "nan")
+  colnames(pmfdata2d)<-c("d","dPHE","pmf",seq_along(colnames(pmfdata2d))[-c(1,2,3)])
+  
+}
+#convert to per CSH equivalent
+pmfdata2d$pmf<-pmfdata2d$pmf/2
+# Calculate the absolute differences from the mean
+abs_diff <- abs(pmfdata2d$dPHE - mean_dPHE)
+
+# Find the indices closest to the mean
+closest_indices <- which(abs_diff == min(abs_diff))
+
+# Find the indices where d is the maximum
+max_d_indices <- which(pmfdata2d$d == max(pmfdata2d$d))
+
+# Find the intersection of the two sets of indices
+final_indices <- intersect(closest_indices, max_d_indices)
+
+# Calculate and print the average of pmf for these indices, and put it as ground state 0
+ground_pmf <- mean(pmfdata2d$pmf[final_indices])
+Solvation_pmf_plt2d<- {
+  ggplot(pmfdata2d, aes(x = d, y = dPHE,fill=pmf-ground_pmf))+geom_tile() +
+    scale_fill_gradientn(
+      colors = c("blue", "yellow","red","black"),
+      values = scales::rescale(c(-14,-7,-1,5)),
+      #breaks = c(0, HistMatrixROut_long_median, 2*HistMatrixROut_long_median, max(HistMatrixROut_long$Pr)),
+      limits = c(-15,5),
+      na.value = "transparent"
+    )+ labs(y="PHE PHE distance (Å)",x = "Distance from the\nCenter of Water Box (Å)", fill = "Potential\nMean\nForce\n(kcal/\nmol of\nCSH equivalent)") +
+    plttheme+
+    theme(legend.direction = "vertical",legend.position = "right")
+  
+}
+
+# Plot the data
+ggplotly(Solvation_pmf_plt2d)
+if (savept) {
+  ggsave(paste0("Ind_Plt/",subdir,"Free Energy of Solvation 2D.png"),
+         plot=Solvation_pmf_plt2d, dpi=1100, 
+         width=2*8.6, height=2*4.3,units="cm")
+}
+pmfdata2dx <- sort(unique(pmfdata2d$d))
+pmfdata2dy <- sort(unique(pmfdata2d$dPHE))
+pmfdata2d$pmf<-pmfdata2d$pmf-max(pmfdata2d$pmf)#mean(pmfdata2d$pmf[which(pmfdata2d$d>-0.5 & pmfdata2d$d<0.5)])
+# Create an empty matrix for z values
+pmfdata2dz_matrix <- matrix(NA, nrow = length(pmfdata2dx), ncol = length(pmfdata2dy))
+
+# Fill the matrix with pmf values
+for (i in 1:nrow(pmfdata2d)) {
+  x_index <- which(pmfdata2dx == pmfdata2d$d[i])
+  y_index <- which(pmfdata2dy == pmfdata2d$dPHE[i])
+  pmfdata2dz_matrix[x_index, y_index] <- pmfdata2d$pmf[i]
+}
+Solvation_pmf_plt2d_surface<-{plot_ly(
+  x = ~pmfdata2dx,
+  y = ~pmfdata2dy,
+  z = ~t(pmfdata2dz_matrix),
+  type = "surface",
+  # colorscale = list(
+  #   c(0, 'rgb(0,0,127)'),
+  #   c(0.25, 'rgb(0,0,255)'),
+  #   c(0.5, 'rgb(0,255,255)'),
+  #   c(0.75, 'rgb(255,255,0)'),
+  #   c(1, 'rgb(255,0,0)')
+  # ),
+  colorscale='Jet',
+  
+  # cmin = 1,
+  # cmax = 30,
+  colorbar = list(
+    title = "Potential Mean Force (kcal/mol)",
+    titleside = "right"
+  )
+  
+) %>% layout(
+  scene = list(
+    xaxis = list(title = "Distance from<br>the Center of<br>Water Box (Å)"),
+    yaxis = list(title = "PHE PHE<br>distance (Å)"),
+    zaxis = list(title = "Potential Mean Force<br>(kcal/mol)")
+  )
+)
+}
+Solvation_pmf_plt2d_surface
+```
+
+
+
+
+
+```{r}
+RdataName<-c(
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_BB_orient"
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_BB_orient_axial12to40.rda" #Orientout
+  ,
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_BB_orient12to31.rda"
+)
+
+SysPrefixList<-c(
+  "CSSCMix"
+  ,
+  "Mix"
+  ,
+  "Pure"
+)
+frames<-c(22641,15202)
+PltTypenameTypelist<-c(
+  # "70% CSSC\nOnly CSSC\nRestrained"
+  # ,
+  "70% CSSC"
+  ,
+  "100% CSSC"
+)
+
+for (L in 2:2) {
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L]) #HbondDistHist
+  plotnameprefix<-SysPrefixList[L]
+  ggplot()+geom_line(aes(x=seq(-100,100,1),y=HistMatrix$OrdPar/HistMatrix$frame))
+}
+
+```
+
+
+
+
+
+
+## Hbond base analysis
+
+
+```{r Hbond 2D, echo=FALSE}
+subdir<-"hbond_dist/"
+load("~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/hbonddis_COM.rda")
+hbondrefd<-4
+hbond2dhism<-rawdistmout
+hbondrefpr<-max(hbond2dhism[which(dishistx>=hbondrefd&dishistx<=hbondrefd+disbinsize),])
+hbonddGm<- -log(as.matrix(hbond2dhism)/hbondrefpr+1e-100)*0.6
+hbonddGm[hbond2dhism ==0] <- NA
+hbondcontourplt<-{
+  plot_ly(                         
+    #width = 1100*3.25,  height = 1100*2.5,
+    type = "contour", 
+    y = dishistx, 
+    x =anglehistx , 
+    z = hbonddGm,#rawdistmout ,
+    colorscale='Jet',
+    reversescale =T,
+    autocontour = F#, 
+    #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  ) %>% 
+    layout(#font=list(size=1100*6/72),
+      yaxis = list(title="N-O distance (Å)",#dtick=0.2,
+                   range = c(2.5,5)),
+      xaxis = list(dtick=0.2,range = c(-1,1),title = "cos(θ)")
+    )%>% 
+    colorbar(#font=list(size=1100*3/72), thickness = 1100*0.25,
+      title = "dG\n(kcal/mol)",dtick=0.5
+    )
+}
+
+```
+
+
+```{r Hbond Dist, echo=FALSE}
+load("~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/hbondcoordis_COM.rda")
+hbondrdisplt<-{
+  ggplot()+
+    geom_line(data = hbondcoordhis[[1]],aes(x=r,y=Density))+
+    labs(x="Hbond r coordinate",y="Radial normalized density")+
+    plttheme+
+    theme(legend.position = "none",aspect.ratio = 0.6
+    )+
+    scale_x_continuous(breaks = seq(0,30,10),limits = c(0,30))
+  #      coord_equal(ratio = xmax/32/3,xlim = c(0, xmax))
+  #+theme(text=element_text(size = 12))
+}
+hbondzdisplt<-{
+  ggplot()+
+    geom_line(data = hbondcoordhis[[2]],aes(x=z,y=Density))+
+    labs(x="Hbond z coordinate",y="Density")+
+    plttheme+
+    theme(legend.position = "none",aspect.ratio = 0.6
+    )+
+    scale_x_continuous(breaks = seq(0,150,25),limits = c(0,150))
+}
+
+```
+
+
+```{r Hbond Dist Moie, echo=FALSE}
+load("~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/hbondtypedis_COM.rda")
+hbondtypedisplt<-{
+  ggplot(data = hbondtypehis,aes(x=Type,y=Density))+
+    geom_bar(stat="identity",position=position_dodge(0.9)
+             #position = "dodge2"
+    )+
+    labs(x="Hbond r coordinate",y="Density")+
+    plttheme+
+    theme(legend.position = "none",aspect.ratio = 0.6
+    )  #      coord_equal(ratio = xmax/32/3,xlim = c(0, xmax))
+  #+theme(text=element_text(size = 12))
+}
+```
+
+
+```{r Hbond Orient, echo=FALSE}
+load("~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/hbondradial_COM.rda")
+hbondradialtotal <- as.data.frame(as.table(hbondradialtotal))
+colnames(hbondradialtotal) <- c("x", "y", "frequency")
+ggplot(hbondradialtotal, aes(x = x, y = y, fill = frequency)) +
+  geom_tile() +
+  scale_fill_gradient(low = "white", high = "blue") +  # Adjust the color scale as needed
+  labs(title = "2D Histogram", x = "X-axis", y = "Y-axis")
+
+##add error bar
+##add angle NHO for 2D plot
+load("~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/hbondradial_COM_type.rda")
+hbondradialplt<-{
+  ggplot(data = hbondradialbytypetotal,aes(x=Angle,y=Density,fill=Type))+
+    geom_bar(stat="identity",position=position_dodge(0.9)
+             #position = "dodge2"
+    )+
+    labs(x="cos(Angle)",y="Density")+
+    plttheme+
+    theme(legend.position = "top",
+          aspect.ratio = 0.6
+    )  #      coord_equal(ratio = xmax/32/3,xlim = c(0, xmax))
+  #+theme(text=element_text(size = 12))
+}
+```
+
+
+```{r print plt,echo=FALSE}
+hbondcontourplt
+hbondrdisplt
+hbondzdisplt
+hbondtypedisplt
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"Hbond_dis_R.png"),
+         plot=hbondrdisplt, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Hbond_dis_R.png"),
+         plot=hbondrdisplt, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+}
+```
+
+
+```{r save plot,echo=FALSE}
+if (savept) {
+  orca(hbondcontourplt,"Desktop/hbondtypedisplt.png")
+}
+```
+
+## Hbond base analysis redo
+```{r}
+subdir <- "hbond_dist/"
+RdataName <- {
+  c(
+    "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_hbond_spati_dist_every10_12to43.rda",
+    "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_hbond_spati_dist_every10_12to36.rda",
+    "~/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_hbond_spati_dist_every10_12to33.rda")
+}
+
+PltTypenameTypelist <- {
+  c(
+    "70% CSSC",
+    "70% CSSC\nOnly CSSC\nRestrained",
+    
+    "100% CSSC",
+    "100% CSH"
+  )
+}
+
+plot_data_R <- list()
+plot_data_Z <- list()
+
+for (L in seq_along(RdataName)) {
+  PltTypenameType<-PltTypenameTypelist[L]
+  load(RdataName[L])  # Load the .rda file (HbondDistHist is assumed)
+  
+  # Normalization factors
+  normalization_R <- HbondDistHist$Frame * 200 * pi
+  
+  z_stepsize <- diff(HbondDistHist$ZBreaks)[1]  # Step size for Z normalization
+  normalization_Z <- 27^2 * pi * z_stepsize*HbondDistHist$Frame
+  print(c(RdataName[L],HbondDistHist$Frame))
+  # Initialize empty data frames for binding
+  R_data <- data.frame()
+  Z_data <- data.frame()
+  R_norm_sum<-0
+  Z_norm_sum<-0
+  R_sum<-0
+  Z_sum<-0
+  # Loop through each Pxx component
+  for (Pxx in c("P11", "P12", "P22")) {
+    # Extract data
+    res_pair <- switch(Pxx, "P11" = "AM1-AM1", "P12" = "AM1-AM2", "P22" = "AM2-AM2")
+    RBreaks <- HbondDistHist$RBreaks
+    ZBreaks <- HbondDistHist$ZBreaks
+    
+    # Normalize and bind for R plot
+    R_norm <- HbondDistHist[[Pxx]]$R / (normalization_R * (((RBreaks + diff(RBreaks)[1] / 2)^2) - ((RBreaks - diff(RBreaks)[1] / 2)^2)))
+    R_data <- rbind(R_data, data.frame(R = RBreaks, Freq = R_norm, Name = res_pair))
+    R_norm_sum<-  R_norm_sum+R_norm
+    R_sum<-  R_sum+sum(HbondDistHist[[Pxx]]$R )
+    
+    # Normalize and bind for Z plot
+    Z_norm <- HbondDistHist[[Pxx]]$Z / normalization_Z
+    Z_data_temp<-data.frame(Z = ZBreaks, Freq = Z_norm, Name = res_pair)
+    Z_data_temp<-Z_data_temp%>%
+      mutate(Z = abs(Z)) %>%           # Step 1: Convert z to absolute value
+      group_by(Name, Z) %>%         # Step 2: Group by Resname and z
+      summarise(
+        Freq = sum(Freq.Freq)/2,              # Step 3: Sum Freq for each Resname-z combination
+        .groups = 'drop'               # Ungroup after summarizing
+      )
+    Z_data <- rbind(Z_data, Z_data_temp)
+    Z_norm_sum<-  Z_norm_sum+Z_norm
+    Z_sum<-  Z_sum+sum(HbondDistHist[[Pxx]]$Z )
+    
+  }
+  print(Z_sum==R_sum)
+  print(R_sum/(HbondDistHist$Frame*1174))
+  print(Z_sum/(HbondDistHist$Frame*1174))
+  
+  R_data <- rbind(R_data, data.frame(R = RBreaks, Freq = R_norm_sum, Name = "Sum"))
+  Z_data_temp<-data.frame(Z = ZBreaks, Freq = Z_norm_sum, Name = "Sum")
+  
+  Z_data_temp<-Z_data_temp%>%
+    mutate(Z = abs(Z)) %>%           # Step 1: Convert z to absolute value
+    group_by(Name, Z) %>%         # Step 2: Group by Resname and z
+    summarise(
+      Freq = sum(Freq.Freq)/2,              # Step 3: Sum Freq for each Resname-z combination
+      .groups = 'drop'               # Ungroup after summarizing
+    )
+  Z_data <- rbind(Z_data, Z_data_temp)
+  
+  
+  # Store the data for plotting
+  plot_data_R[[L]] <- R_data %>% mutate(PltTypename = PltTypenameTypelist[L])
+  plot_data_Z[[L]] <- Z_data %>% mutate(PltTypename = PltTypenameTypelist[L])
+  
+  # Generate R plot
+  Hbond_R_plot <- {ggplot(plot_data_R[[L]], aes(x = R, y = Freq.Freq*1E3,, color = Name)) +
+      geom_line() +
+      labs(
+        x = "Hbond Radial Distance (Å)",
+        y = "Number Density (xE-3/Å³)",title = PltTypenameType, col="Moiety"
+      ) +
+      plttheme +
+      ylim(0,0.004E3)
+  }
+  shrink_by=5 
+  plot_data_Z[[L]]<-plot_data_Z[[L]] %>%
+    group_by(Name, PltTypename) %>%       # Group by Name and PltTypename
+    mutate(
+      Z_group = floor((Z - min(Z)) / shrink_by) * shrink_by + min(Z) + (shrink_by - 1) / 2
+    ) %>%                                 # Define Z group centered in each range
+    group_by(Name, PltTypename, Z_group) %>%  # Group by new Z group
+    summarise(
+      Z = mean(Z),                         # Set Z to be the mean of grouped Z values
+      Freq = mean(Freq),                   # Average Freq over each Z group
+      .groups = 'drop'                     # Ungroup after summarizing
+    ) %>%
+    select(Name, Z_group, Freq, PltTypename) %>%  # Select desired columns
+    rename(Z = Z_group)        
+  # Generate Z plot
+  Hbond_Z_plot <- {
+    ggplot(plot_data_Z[[L]], aes(x = Z, y = Freq*1E3, color = Name)) +
+      geom_line() +
+      labs(
+        x = "Hbond Axial Distance (Å)",
+        y = "Number Density (xE-3/Å³)",title = PltTypenameType, col="Moiety"
+      ) +
+      plttheme +
+      ylim(0,0.003E3)
+  }
+    if (1) {
+    if (L==1) {
+        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+         plot=Hbond_R_plot, dpi=1100, 
+         width=20, height=10,units="cm")
+    }
+    Hbond_R_plot <- Hbond_R_plot +
+      theme(legend.position = "none",axis.title.y = element_blank())
+    Hbond_Z_plot<-Hbond_Z_plot+
+      theme(legend.position = "none",axis.title.y = element_blank())
+  }
+  # Save plots with distinct names
+  assign(paste0("Hbond_R_plt",L),Hbond_R_plot)
+  assign(paste0("Hbond_Z_plt",L),Hbond_Z_plot)
+  
+}
+
+
+```
+
+```{r}
+ggplotly(Hbond_R_plt1)
+ggplotly(Hbond_Z_plt1)
+ggplotly(Hbond_R_plt2)
+ggplotly(Hbond_Z_plt2)
+ggplotly(Hbond_R_plt3)
+ggplotly(Hbond_Z_plt3)
+
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorZ.png"),
+         plot=Hbond_Z_plt1, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorR.png"),
+         plot=Hbond_R_plt1, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorZ.png"),
+         plot=Hbond_Z_plt2, dpi=1100,
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorR.png"),
+         plot=Hbond_R_plt2, dpi=1100,
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorZ.png"),
+         plot=Hbond_Z_plt3, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorR.png"),
+         plot=Hbond_R_plt3, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+}
+```
+
+
+## Pi-pi Interaction
+
+Get pi interaction distribution
+
+```{r Pi Int Dist, echo=FALSE}
+subdir<-"Pi_int/"
+PiCount<-c()
+pdis<-4.9 #parallel distance maximum
+pang<-0.9 #parallel angle cutoff
+tdisl<-5.5 #t shape distance minimum
+tdish<-5.8 #t shape distance maximum
+tang<-0.23 #t shape angle
+step_size <- 10 #make axial distribution smooth
+outputdir<-"/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/"
+outnamepre<-"pure_27A_cylcssc_fibre_Pi"
+firstrun<-10
+lastrun<-29
+outname1<-paste0(outputdir,outnamepre,"_PiInt_",firstrun,"to",lastrun,".rda")
+load(outname1) #rm(PiAnaOut)
+PiCount<-rbind(PiCount,cbind(cbind(c("T Shape","Parallel","Total"),PiAnaOut$count/(1174*PiAnaOut$Frame)),"100% CSSC"))
+#extract and combine dist for axial dir
+PiDistZ<-c()
+for (name in c("tshapeZ","ParZ")) {
+  PiDistZtemp<-cbind(seq(-159.5,159.5,1),PiAnaOut[[name]])
+  PiDistZtemp<-as.data.frame(PiDistZtemp)
+  colnames(PiDistZtemp)<-c("z","Freq")
+  PiDistZtemp<-as.data.frame(PiDistZtemp)
+  for (i in 1:2) {
+    PiDistZtemp[,i]<-as.numeric(PiDistZtemp[,i])
+  }
+  PiDistZtemp <- PiDistZtemp %>%
+    group_by(z = ((z - 1) %/% step_size) * step_size + 1) %>%
+    summarise(Freq = sum(Freq))
+  PiDistZtemp<-cbind(PiDistZtemp,name)
+  colnames(PiDistZtemp)<-c("r","Freq","Type")
+  PiDistZ<-rbind(PiDistZ,PiDistZtemp)
+}            
+PiDistZ<-as.data.frame(PiDistZ)
+for (i in 1:2) {
+  PiDistZ[,i]<-as.numeric(PiDistZ[,i])
+}
+colnames(PiDistZ)<-c("z","Freq","Type")
+#extract and combine dist for axial dir
+PiDistR<-c()
+for (name in c("tshapeR","ParR")) {
+  PiDistR<-rbind(PiDistR,cbind(seq(0.5,29.5,1),PiAnaOut[[name]],name))
+}            
+PiDistR<-as.data.frame(PiDistR)
+for (i in 1:2) {
+  PiDistR[,i]<-as.numeric(PiDistR[,i])
+}
+colnames(PiDistR)<-c("r","Freq","Type")
+PiHist_d_ang_Norm<-PiAnaOut$PiHist_d_ang_raw /sum(PiAnaOut$PiHist_d_ang_raw)
+PiHist_d_ang_Norm[PiHist_d_ang_Norm == 0] <- NA#countour plot for angle vs distance
+PurePiContourPltFibre<-{
+  plot_ly(                         
+    width = 1100*3.25,  height = 1100*2.5,
+    type = "contour", 
+    y = seq(0.1,6.9,0.2), 
+    x =seq(0.05,0.95,0.1) , 
+    z = PiHist_d_ang_Norm,
+    colorscale='Jet',
+    reversescale =F,
+    #autocontour = F, 
+    #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  ) %>% 
+    layout(font=list(size=1100*6/72),
+           yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+           xaxis = list(title = "|cos(φ)|"
+                        #"|cos(angle between normal vectors to aromatic rings)|"
+                        ,dtick=0.1)
+    )%>% 
+    colorbar(          
+      font=list(size=1100*3/72), thickness = 1100*0.25
+      ,
+      title = "Pr"#, #dG\n(kcal/mol)"
+      #dtick=0.5
+    )
+}
+Type="100% CSSC"
+coorlabz<-labs(x="Axial Distance from Centre (Å)",y="Pi Stacking\nNumber Density (/Å³)",col=Type)
+coorlabr<-labs(x="Radial Distance from Centre (Å)",y="Pi Stacking\nNumber Density (/Å³)",col=Type)
+PurePiDistPltZ<-{
+  ggplot(PiDistZ)+
+    geom_line(aes(x=z,y=Freq/(pi*27^2*PiAnaOut$Frame*step_size),col=Type))+
+    plttheme+
+    coorlabz+
+    theme(legend.direction = "vertical")
+  
+}
+PurePiDistPltR<-{
+  ggplot(PiDistR)+
+    geom_line(aes(x=r,y=(Freq/PiAnaOut$Frame)/(((r+0.5)^2-(r-0.5)^2)*pi*220),col=Type))+
+    plttheme+
+    coorlabr+
+    theme(legend.direction = "vertical")
+  
+}
+
+outnamepre<-"mix_27A_cylcssc_fibre_Pi"
+firstrun<-12
+lastrun<-25
+outname1<-paste0(outputdir,outnamepre,"_PiInt_",firstrun,"to",lastrun,".rda")
+load(outname1) #rm(PiAnaOut)
+Type="70% CSSC\nOnly CSSC\nRestrained"
+PiCount<-rbind(PiCount,cbind(cbind(c("T Shape","Parallel","Total"),PiAnaOut$count/(1174*PiAnaOut$Frame)),Type))
+PiDistZ<-c()
+for (name in c("tshapeZ","ParZ")) {
+  PiDistZtemp<-cbind(seq(-159.5,159.5,1),PiAnaOut[[name]])
+  PiDistZtemp<-as.data.frame(PiDistZtemp)
+  colnames(PiDistZtemp)<-c("z","Freq")
+  PiDistZtemp<-as.data.frame(PiDistZtemp)
+  for (i in 1:2) {
+    PiDistZtemp[,i]<-as.numeric(PiDistZtemp[,i])
+  }
+  PiDistZtemp <- PiDistZtemp %>%
+    group_by(z = ((z - 1) %/% step_size) * step_size + 1) %>%
+    summarise(Freq = sum(Freq))
+  PiDistZtemp<-cbind(PiDistZtemp,name)
+  colnames(PiDistZtemp)<-c("r","Freq","Type")
+  PiDistZ<-rbind(PiDistZ,PiDistZtemp)
+}            
+PiDistZ<-as.data.frame(PiDistZ)
+for (i in 1:2) {
+  PiDistZ[,i]<-as.numeric(PiDistZ[,i])
+}
+colnames(PiDistZ)<-c("z","Freq","Type")
+PiDistR<-c()
+for (name in c("tshapeR","ParR")) {
+  PiDistR<-rbind(PiDistR,cbind(seq(0.5,29.5,1),PiAnaOut[[name]],name))
+}            
+PiDistR<-as.data.frame(PiDistR)
+for (i in 1:2) {
+  PiDistR[,i]<-as.numeric(PiDistR[,i])
+}
+colnames(PiDistR)<-c("r","Freq","Type")
+CSSCMixPiContourPltFibre<-{
+  plot_ly(                         
+    # width = 1100*3.25,  height = 1100*2.5,
+    type = "contour", 
+    y = seq(0.1,6.9,0.2), 
+    x =seq(0.05,0.95,0.1) , 
+    z = PiAnaOut$PiHist_d_ang_raw /sum(PiAnaOut$PiHist_d_ang_raw),
+    colorscale='Jet',
+    reversescale =T,
+    #autocontour = F, 
+    #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  ) %>% 
+    layout(#font=list(size=1100*6/72),
+      yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+      xaxis = list(title = "|cos(φ)|"
+                   #"|cos(angle between normal vectors to aromatic rings)|"
+                   ,dtick=0.1)
+    )%>% 
+    colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
+      #title = "dG\n(kcal/mol)",dtick=0.5
+    )
+}
+coorlabz<-labs(x="Axial Distance from Centre (Å)",y="Pi Stacking\nNumber Density (/Å³)",col=Type)
+coorlabr<-labs(x="Radial Distance from Centre (Å)",y="Pi Stacking\nNumber Density (/Å³)",col=Type)
+CSSCMixPiDistPltZ<-{
+  ggplot(PiDistZ)+
+    geom_line(aes(x=z,y=Freq/(pi*27^2*PiAnaOut$Frame*step_size),col=Type))+
+    plttheme+
+    coorlabz+
+    theme(legend.direction = "vertical")
+  
+}
+CSSCMixPiDistPltR<-{
+  ggplot(PiDistR)+
+    geom_line(aes(x=r,y=(Freq/PiAnaOut$Frame)/(((r+0.5)^2-(r-0.5)^2)*pi*220),col=Type))+
+    plttheme+
+    coorlabr+
+    theme(legend.direction = "vertical")
+  
+}
+
+outnamepre<-"mix_27A_fibre_Pi"
+firstrun<-12
+lastrun<-34
+outname1<-paste0(outputdir,outnamepre,"_PiInt_",firstrun,"to",lastrun,".rda")
+load(outname1) #rm(PiAnaOut)
+Type="70% CSSC"
+PiCount<-rbind(PiCount,cbind(cbind(c("T Shape","Parallel","Total"),PiAnaOut$count/(1174*PiAnaOut$Frame)),Type))
+PiDistZ<-c()
+for (name in c("tshapeZ","ParZ")) {
+  PiDistZtemp<-cbind(seq(-159.5,159.5,1),PiAnaOut[[name]])
+  PiDistZtemp<-as.data.frame(PiDistZtemp)
+  colnames(PiDistZtemp)<-c("z","Freq")
+  PiDistZtemp<-as.data.frame(PiDistZtemp)
+  for (i in 1:2) {
+    PiDistZtemp[,i]<-as.numeric(PiDistZtemp[,i])
+  }
+  PiDistZtemp <- PiDistZtemp %>%
+    group_by(z = ((z - 1) %/% step_size) * step_size + 1) %>%
+    summarise(Freq = sum(Freq))
+  PiDistZtemp<-cbind(PiDistZtemp,name)
+  colnames(PiDistZtemp)<-c("r","Freq","Type")
+  PiDistZ<-rbind(PiDistZ,PiDistZtemp)
+}            
+PiDistZ<-as.data.frame(PiDistZ)
+for (i in 1:2) {
+  PiDistZ[,i]<-as.numeric(PiDistZ[,i])
+}
+colnames(PiDistZ)<-c("z","Freq","Type")
+PiDistR<-c()
+for (name in c("tshapeR","ParR")) {
+  PiDistR<-rbind(PiDistR,cbind(seq(0.5,29.5,1),PiAnaOut[[name]],name))
+}            
+PiDistR<-as.data.frame(PiDistR)
+for (i in 1:2) {
+  PiDistR[,i]<-as.numeric(PiDistR[,i])
+}
+colnames(PiDistR)<-c("r","Freq","Type")
+MixPiContourPltFibre<-{
+  plot_ly(                         
+    # width = 1100*3.25,  height = 1100*2.5,
+    type = "contour", 
+    y = seq(0.1,6.9,0.2), 
+    x =seq(0.05,0.95,0.1) , 
+    z = PiAnaOut$PiHist_d_ang_raw /sum(PiAnaOut$PiHist_d_ang_raw),
+    colorscale='Jet',
+    reversescale =T,
+    #autocontour = F, 
+    #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  ) %>% 
+    layout(#font=list(size=1100*6/72),
+      yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+      xaxis = list(title = "|cos(φ)|"
+                   #"|cos(angle between normal vectors to aromatic rings)|"
+                   ,dtick=0.1)
+    )%>% 
+    colorbar(          font=list(size=1100*3/72), thickness = 1100*0.25,
+                       title = "Pr" #dG\n(kcal/mol)"
+                       ,
+                       dtick=0.5
+    )
+}
+coorlabz<-labs(x="Axial Distance from Centre (Å)",y="Pi Stacking\nNumber Density (/Å³)",col=Type)
+coorlabr<-labs(x="Radial Distance from Centre (Å)",y="Pi Stacking\nNumber Density (/Å³)",col=Type)
+MixPiDistPltZ<-{
+  ggplot(PiDistZ)+
+    geom_line(aes(x=z,y=Freq/(pi*27^2*PiAnaOut$Frame*step_size),col=Type))+
+    plttheme+
+    coorlabz+
+    theme(legend.direction = "vertical")
+  
+}
+MixPiDistPltR<-{
+  ggplot(PiDistR)+ 
+    geom_line(aes(x=r,y=(Freq/PiAnaOut$Frame)/(((r+0.5)^2-(r-0.5)^2)*pi*220),col=Type))+
+    plttheme+
+    coorlabr+
+    theme(legend.direction = "vertical")
+}
+
+PiCount<-as.data.frame(PiCount)
+colnames(PiCount)<-c("Pi","Count","System")
+PiCount$Count<-as.numeric(PiCount$Count)
+
+System="Unrestrained\n32-Unit\n75% CSSC\n"
+Pi<-c("T Shape","Parallel","Total")
+Count<-c(0.0511,0.0956,0.1467)
+PiCount<-rbind(PiCount,cbind(Pi,Count,System))
+PiCount$Count<-as.numeric(PiCount$Count)
+
+System="Unrestrained\n32-Unit\n100% CSSC\n"
+Pi<-c("T Shape","Parallel","Total")
+Count<-c(0.0519,0.0996,0.1516)
+PiCount<-rbind(PiCount,cbind(Pi,Count,System))
+PiCount$Count<-as.numeric(PiCount$Count)
+
+PiCountPlt<-{
+  ggplot(PiCount)+
+    geom_bar(aes(x=Pi,y=Count,fill=System),stat = "identity",position = "dodge", width = 0.7) +
+    scale_fill_manual(values = c( "70% CSSC\nOnly CSSC\nRestrained"="Red","70% CSSC" = "orange","100% CSSC" = "blue","Unrestrained\n32-Unit\n75% CSSC\n"="Black","Unrestrained\n32-Unit\n100% CSSC\n"="Grey")) +
+    
+    labs(x = "Type of Pi Interaction", y = "Per CSH equvalents",fill="")+
+    plttheme+
+    theme(legend.direction = "vertical",
+          legend.text = element_text(size = 5),  # Make legend text smaller
+          ,legend.key.size = unit(0.4, "cm"),        legend.key.spacing.y = unit(0.2, "cm"),legend.key.height = unit(0.4, "cm")
+          
+          #,legend.position = c(0.1,0.7)
+    )
+}
+
+```
+
+```{r Pi Int Dist Print, echo=FALSE}
+PurePiContourPltFibre
+ggplotly(PurePiDistPltZ)
+ggplotly(PurePiDistPltR)
+ggplotly(MixPiDistPltR)
+ggplotly(MixPiDistPltZ)
+ggplotly(CSSCMixPiDistPltR)
+ggplotly(CSSCMixPiDistPltZ)
+
+if (savept) {
+  if (!dir.exists(paste0("Ind_Plt/",`subdir))) {
+    dir.create(paste0("Ind_Plt/",subdir))
+  }
+  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_Z.png"),
+         plot=MixPiDistPltZ, dpi=1100,
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_R.png"),
+         plot=MixPiDistPltR, dpi=1100,
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_Pi_Dis_Z.png"),
+         plot=CSSCMixPiDistPltZ, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_Pi_Dis_R.png"),
+         plot=CSSCMixPiDistPltR, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_Z.png"),
+         plot=PurePiDistPltZ, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_R.png"),
+         plot=PurePiDistPltR, dpi=1100, 
+         width=8.6, height=4.3,units="cm")
+  orca(PurePiContourPltFibre,paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_Ang.png"))
+  ggsave(paste0("Ind_Plt/",subdir,"PiCountPlt.png"),
+         plot=PiCountPlt, dpi=1100, 
+         width=2*8.6, height=2*4.3,units="cm")
+}
+```
+
+## Caption figure
+```{r}
+plt1 <- ggplot() +
+  geom_line(aes(x = c(0,1), y = c(0,1), color = "Example Legend"), show.legend = TRUE)+
+    scale_color_manual(name = expression("Number Density (×10"^-4~"/Å"^3~")"), values = c("Example Legend" = "black")) +  # Manually define legend
+  labs(x="Radial Distance from Center", y = expression("Number Density (×10"^-4~"/Å"^3~")")) +
+  plttheme+
+  theme(legend.position = "bottom")
+plt1
+
+ 
+
+ggsave("Ind_Plt/pltlegen_x.png",
+       plot = plt1, dpi = 1100, 
+       width = 15, height = 10, units = "cm")
+```
+
