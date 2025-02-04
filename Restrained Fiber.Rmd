@@ -7,6 +7,8 @@ date: "`r Sys.Date()`"
 ---
 
 ```{r, echo=FALSE,warning=FALSE,include=FALSE}
+pltmaindir<-"~/Documents/Research/MRSEC/CSH-CSSC/Restrained fiber/Ind_Plt/"
+
 library(dplyr)
 library(data.table)
 library(plotly)
@@ -257,7 +259,7 @@ fibdist[[2]]<-fibdist[[2]][-which(fibdist[[2]]$Freq<=max(fibdist[[2]]$Freq) & fi
   }
   if (1) {
     if (L==1) {
-        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+        ggsave(paste0(pltmaindir,subdir,"/legend.png"),
          plot=mixcoorpltz, dpi=1100, 
          width=10, height=10,units="cm")
     }
@@ -281,25 +283,25 @@ ggplotly(heavy_rho_z3)
 ggplotly(heavy_rho_r3)
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Mix_CoorZ.png"),
          plot=heavy_rho_z2, dpi=1100, 
          width=8, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Mix_CoorR.png"),
          plot=heavy_rho_r2, dpi=1100, 
          width=8, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Cylcssc_Mix_CoorZ.png"),
          plot=heavy_rho_z1, dpi=1100,
          width=8, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Cylcssc_Mix_CoorR.png"),
          plot=heavy_rho_r1, dpi=1100,
          width=8, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Pure_CoorZ.png"),
          plot=heavy_rho_z3, dpi=1100, 
          width=8, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Pure_CoorR.png"),
          plot=heavy_rho_r3, dpi=1100, 
          width=8, height=4.3,units="cm")
 }
@@ -411,7 +413,7 @@ mixcoorpltr<-{
 }
   if (1) {
     if (L==2) {
-        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+        ggsave(paste0(pltmaindir,subdir,"/legend.png"),
          plot=mixcoorpltz, dpi=1100, 
          width=10, height=10,units="cm")
     }
@@ -434,25 +436,25 @@ ggplotly(moiety_heavy_rho_z3)
 ggplotly(moiety_heavy_rho_r3)
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"Mix_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mix_CoorZ.png"),
          plot=moiety_heavy_rho_z2, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Mix_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mix_CoorR.png"),
          plot=moiety_heavy_rho_r2, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  # ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_CoorZ.png"),
+  # ggsave(paste0(pltmaindir,subdir,"Cylcssc_Mix_CoorZ.png"),
   #        plot=moiety_heavy_rho_z1, dpi=1100, 
   #        width=8.6, height=4.3,units="cm")
-  # ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_CoorR.png"),
+  # ggsave(paste0(pltmaindir,subdir,"Cylcssc_Mix_CoorR.png"),
   #        plot=moiety_heavy_rho_r1, dpi=1100, 
   #        width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Pure_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"Pure_CoorZ.png"),
          plot=moiety_heavy_rho_z3, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Pure_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"Pure_CoorR.png"),
          plot=moiety_heavy_rho_r3, dpi=1100, 
          width=8.6, height=4.3,units="cm")
 }
@@ -542,16 +544,16 @@ ggplotly(mixdensityplt)
 ggplotly(puredensityplt)
 ggplotly(mixdensityCSSCplt)
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"/mixdensityplt.png"),
+  ggsave(paste0(pltmaindir,subdir,"/mixdensityplt.png"),
          plot=mixdensityplt+theme(legend.position = "none"), dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/puredensityplt.png"),
+  ggsave(paste0(pltmaindir,subdir,"/puredensityplt.png"),
          plot=puredensityplt+theme(legend.position = "none"), dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/mixdensityCSSCplt.png"),
+  ggsave(paste0(pltmaindir,subdir,"/mixdensityCSSCplt.png"),
          plot=mixdensityCSSCplt, dpi=1100, 
          width=8.6, height=4.3,units="cm")
 }
@@ -659,13 +661,13 @@ ggplotly(fib_rho_plt)
 ggplotly(fib_rho_plt2)
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"/densityplt.png"),
+  ggsave(paste0(pltmaindir,subdir,"/densityplt.png"),
          plot=fib_rho_plt, dpi=1100, 
          width=8.6*2, height=2*5,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/fiber_sizeplt.png"),
+  ggsave(paste0(pltmaindir,subdir,"/fiber_sizeplt.png"),
          plot= fib_rho_plt2, dpi=1100, 
          width=8.6, height=4.3,units="cm")
 }
@@ -683,9 +685,9 @@ PHE-PHE distance
 # load(outname3)
 subdir<-"phe-phe_dis/"
 RdataName<-c(
-  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_PHEdis_R+_12to29.rda"
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_cylcssc_fibre_PHEdis_R+_12to29_every100.rda"
   ,
-  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_PHEdis_SS12to37.rda"
+  "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/mix_27A_fibre_PHEdis_SS12to38_every100.rda"
   ,
   "/Users/song/Documents/Research/HPC/dfs2/mrsec/CSH-CSSC/cyl1/mix_27A/analysis/data/pure_27A_fibre_PHEdis_SS12to33_every100.rda"
 )
@@ -711,42 +713,69 @@ for (L in 1:3) {
   load(RdataName[L]) #HbondDistHist
   SysPrefix<-SysPrefixList[L]
   HistMatrixROut_long<-PheDisOut$HistMatrixROut_long
+  Rbreaks<-PheDisOut$Rbreaks
   # HistMatrixROut_long$Pr<- HistMatrixROut_long$Pr* HistMatrixROut_long$R
   HistMatrixROut_long_median<-median(HistMatrixROut_long$Pr[which(HistMatrixROut_long$Pr>0)])
+  # Ensure correct order and compute xmin and xmax from Rbreaks
+HistMatrixROut_long <- {
+  HistMatrixROut_long %>%
+    arrange(R) %>%
+    mutate(
+        xmin = Rbreaks[match(R, Rbreaks) ],  # Previous bin edge
+        xmax = Rbreaks[match(R, Rbreaks)+1],      # Current bin edge
+        ymin = D,
+        ymax = lead(D, default = max(D) + diff(range(D))/length(D))  # Ensure proper tile height
+    ) %>%
+    filter(!is.na(xmin) & !is.na(xmax))  # Remove any NA values
+}
+# Ensure xmax > xmin (correct errors if needed)
+HistMatrixROut_long <- {HistMatrixROut_long %>%
+    mutate(
+        xmin = ifelse(is.na(xmin), min(Rbreaks), xmin),
+        xmax = ifelse(is.na(xmax), max(Rbreaks), xmax)
+    )
+}
+  HistMatrixROut_long$Pr[HistMatrixROut_long$Pr==0]=NA
   PheDisRPlt<-{
-    ggplot(HistMatrixROut_long, aes(x = R, y = D, fill = Pr*1E5)) +
-      geom_tile() +
-      scale_fill_gradientn(
+    ggplot(HistMatrixROut_long, aes(fill = Pr*100 )) +
+    geom_rect(aes(
+        xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax
+    )) +
+    scale_fill_gradientn(
         colors = c("blue", "yellow","red","black"),
         #values = scales::rescale(c(0, HistMatrixROut_long_median,2*HistMatrixROut_long_median, max(HistMatrixROut_long$Pr))),
         #breaks = c(0, HistMatrixROut_long_median, 2*HistMatrixROut_long_median, max(HistMatrixROut_long$Pr)),
-        limits = c(1e-100, 20),
+        #limits = c(1e-100, 20),
         na.value = "transparent"
       )+
       labs(
         x = "Radial Distance of Disulfide Bond (Å)",
         y = "PHE PHE Distance d (Å)",
-        fill="Number Density (xE-5/Å³)",#paste0(PltTypenameType,"\nNumber Density\n(/Å³)"),
+        fill=expression("Number Density (×10"^-2~"/Å"^3~")"),#paste0(PltTypenameType,"\nNumber Density\n(/Å³)"),
         title = PltTypenameType
-        ) +
+      ) +
       plttheme +
       scale_x_continuous(breaks = seq(0, 30, 5)) +
       scale_y_continuous(limits = c(2.5,14.5),breaks = seq(0, 15, 5))+
       theme(
-            legend.direction = "horizontal",
-            #legend.box.margin = margin(t = -10),
-            legend.key.width  = unit(1.5,"cm"),
-            legend.key.height   = unit(0.5,"cm"),
-            legend.position = "top",
+        legend.direction = "horizontal",
+        #legend.box.margin = margin(t = -10),
+        legend.key.width  = unit(1.5,"cm"),
+        legend.key.height   = unit(0.5,"cm"),
+        legend.position = "top",
       )
   }
+
+
+
+
   if (L==1) {
-            ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
-         plot=PheDisRPlt, dpi=1100, 
-         width=8.6*2.2, height=10,units="cm")
-    }
-    PheDisRPlt <- PheDisRPlt +
-      theme(legend.position = "none",axis.title.y = element_blank(),axis.title.x = element_blank())
+    ggsave(paste0(pltmaindir,subdir,"/legend.png"),
+           plot=PheDisRPlt, dpi=1100, 
+           width=8.6*2.2, height=10,units="cm")
+  }
+  PheDisRPlt <- PheDisRPlt +
+    theme(legend.position = "none",axis.title.y = element_blank(),axis.title.x = element_blank())
   
   
   # abs_hist_ang_r<-as.matrix(abs_hist_ang_r)
@@ -804,32 +833,32 @@ for (L in 1:3) {
                         zaxis = list(title = "Pr")))
   
   
-  PHEdisRpltContr<-{
-    plot_ly(        
-      data = averaged_data, 
-      x = ~R, 
-      y = ~D, 
-      z = ~Pr,
-      # width = 1100*3.25,  height = 1100*2.5,
-      type = "contour", 
-      colorscale='Jet',
-      reversescale =T
-      #autocontour = F, 
-      #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
-    ) %>% 
-      layout(#font=list(size=1100*6/72),
-        yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
-        xaxis = list(title = "|cos(φ)|"
-                     #"|cos(angle between normal vectors to aromatic rings)|"
-                     # ,dtick=0.1
-        )
-      )%>% 
-      colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
-        #title = "dG\n(kcal/mol)",dtick=0.5
-      )
-  }
+  # PHEdisRpltContr<-{
+  #   plot_ly(        
+  #     data = averaged_data, 
+  #     x = ~R, 
+  #     y = ~D, 
+  #     z = ~Pr,
+  #     # width = 1100*3.25,  height = 1100*2.5,
+  #     type = "contour", 
+  #     colorscale='Jet',
+  #     reversescale =T
+  #     #autocontour = F, 
+  #     #contours=list(start = -1.5, end =1 , size = 0.2,showlabels = TRUE)
+  #   ) %>% 
+  #     layout(#font=list(size=1100*6/72),
+  #       yaxis = list(title="PHE-PHE distance (Å)",dtick=0.5,range = c(3.5, 7)),
+  #       xaxis = list(title = "|cos(φ)|"
+  #                    #"|cos(angle between normal vectors to aromatic rings)|"
+  #                    # ,dtick=0.1
+  #       )
+  #     )%>% 
+  #     colorbar(          #font=list(size=1100*3/72), thickness = 1100*0.25,
+  #       #title = "dG\n(kcal/mol)",dtick=0.5
+  #     )
+  # }
   assign(paste0("PHEdisRpltContrAve",L),PHEdisRpltContrAve)
-  assign(paste0("PHEdisRpltContr",L),PHEdisRpltContr)
+  # assign(paste0("PHEdisRpltContr",L),PHEdisRpltContr)
   assign(paste0("PheDisRPlt",L),PheDisRPlt)
   
 }
@@ -848,20 +877,20 @@ ggplotly(PHEdisRpltContr1)
 ggplotly(PHEdisRpltContr2)
 ggplotly(PHEdisRpltContr3)
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"MixCSSCpheDis.png"),
+  ggsave(paste0(pltmaindir,subdir,"MixCSSCpheDis.png"),
          plot=PheDisRPlt1, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"MixpheDis.png"),
+  ggsave(paste0(pltmaindir,subdir,"MixpheDis.png"),
          plot=PheDisRPlt2, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"PurepheDis.png"),
+  ggsave(paste0(pltmaindir,subdir,"PurepheDis.png"),
          plot=PheDisRPlt3, dpi=1100, 
          width=8.6, height=4.3,units="cm")
 }
-
+getwd()
 ```
 
 ## Backbone Orientation in Radial Direction
@@ -975,7 +1004,7 @@ for (L in 1:3) {
       
   }  
     if (L==1) {
-    ggsave(paste0("Ind_Plt/",subdir,"/legendR.png"),
+    ggsave(paste0(pltmaindir,subdir,"/legendR.png"),
            plot=AbsOrientRplt, dpi=1100, 
            width=8.6*2.2, height=10,units="cm")
   }
@@ -1043,7 +1072,7 @@ for (L in 1:3) {
   }
   
   if (L==1) {
-    ggsave(paste0("Ind_Plt/",subdir,"/legendZ.png"),
+    ggsave(paste0(pltmaindir,subdir,"/legendZ.png"),
            plot=OrientZplt, dpi=1100, 
            width=8.6*2.2, height=10,units="cm")
   }
@@ -1118,7 +1147,7 @@ for (L in 1:3) {
   }
   
   if (L==1) {
-    ggsave(paste0("Ind_Plt/",subdir,"/legendZ.png"),
+    ggsave(paste0(pltmaindir,subdir,"/legendZ.png"),
            plot=AbsOrientZplt, dpi=1100, 
            width=8.6*2.2, height=10,units="cm")
   }
@@ -1129,16 +1158,16 @@ for (L in 1:3) {
 
 
   if (savept) {
-    if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-      dir.create(paste0("Ind_Plt/",subdir))
+    if (!dir.exists(paste0(pltmaindir,subdir))) {
+      dir.create(paste0(pltmaindir,subdir))
     }
-    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriZ.png"),
+    # ggsave(paste0(pltmaindir,subdir,plotnameprefix,"OriZ.png"),
     #        plot=OrientZplt, dpi=1100, 
     #        width=8.6, height=4.3,units="cm")
-    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriR.png"),
+    # ggsave(paste0(pltmaindir,subdir,plotnameprefix,"OriR.png"),
     #        plot=OrientRplt, dpi=1100, 
     #        width=8.6, height=4.3,units="cm")
-    ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"AbsOriZ.png"),
+    ggsave(paste0(pltmaindir,subdir,plotnameprefix,"AbsOriZ.png"),
            plot=AbsOrientZplt, dpi=1100, 
            width=8.6, height=4.3*1.3,units="cm")  
     ggsave(paste0(getwd(),"/Ind_Plt/",subdir,plotnameprefix,"AbsOriR.png"),
@@ -1279,7 +1308,7 @@ fill=paste0("Number Density (xE-7/Å³)"),
       
   }  
     if (L==1) {
-    ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+    ggsave(paste0(pltmaindir,subdir,"/legend.png"),
            plot=AbsOrientRplt, dpi=1100, 
            width=8.6*2.2, height=10,units="cm")
   }
@@ -1424,19 +1453,19 @@ fill=paste0("Number Density (xE-7/Å³)"),
       axis.title.y = element_blank())
   
   if (savept) {
-    if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-      dir.create(paste0("Ind_Plt/",subdir))
+    if (!dir.exists(paste0(pltmaindir,subdir))) {
+      dir.create(paste0(pltmaindir,subdir))
     }
-    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriZ.png"),
+    # ggsave(paste0(pltmaindir,subdir,plotnameprefix,"OriZ.png"),
     #        plot=OrientZplt, dpi=1100, 
     #        width=8.6, height=4.3,units="cm")
-    # ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"OriR.png"),
+    # ggsave(paste0(pltmaindir,subdir,plotnameprefix,"OriR.png"),
     #        plot=OrientRplt, dpi=1100, 
     #        width=8.6, height=4.3,units="cm")
-    ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"AbsOriZ.png"),
+    ggsave(paste0(pltmaindir,subdir,plotnameprefix,"AbsOriZ.png"),
            plot=AbsOrientZplt, dpi=1100, 
            width=8.6, height=4.3*1.3,units="cm")
-    ggsave(paste0("Ind_Plt/",subdir,plotnameprefix,"AbsOriR.png"),
+    ggsave(paste0(pltmaindir,subdir,plotnameprefix,"AbsOriR.png"),
            plot=AbsOrientRplt, dpi=1100, 
            width=8.6, height=4.3*1.3,units="cm")
   }
@@ -1600,8 +1629,8 @@ PiCount <- data.frame()
 plots <- list()
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
 }
 
@@ -1650,7 +1679,7 @@ for (i in seq_along(systems)) {
   }
   if (1) {
     if (i==1) {
-      ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+      ggsave(paste0(pltmaindir,subdir,"/legend.png"),
              plot=tempZplt, dpi=1100, 
              width=15, height=10,units="cm")
     }
@@ -1719,25 +1748,25 @@ PiCountPlt<-{
 ggplotly(PiCountPlt)
 
 if (savept) {
-  ggsave(paste0("Ind_Plt/",subdir,"PiCountPlt.png"),
+  ggsave(paste0(pltmaindir,subdir,"PiCountPlt.png"),
          plot=PiCountPlt, dpi=1100, 
          width=2*8.6, height=2*4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_Z.png"),
+  ggsave(paste0(pltmaindir,subdir,"Pure_Pi_Dis_Z.png"),
          plot=PiDistPltZ1, dpi=1100,
          width=8.2, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Pure_Pi_Dis_R.png"),
          plot=PiDistPltR1, dpi=1100,
          width=8.2, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_Z.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mix_Pi_Dis_Z.png"),
          plot=PiDistPltZ3, dpi=1100,
          width=8.2, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mix_Pi_Dis_R.png"),
          plot=PiDistPltR3, dpi=1100,
          width=8.2, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Pi_Dis_Z.png"),
+  ggsave(paste0(pltmaindir,subdir,"Cylcssc_Pi_Dis_Z.png"),
          plot=PiDistPltZ2, dpi=1100,
          width=8.2, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Pi_Dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Cylcssc_Pi_Dis_R.png"),
          plot=PiDistPltR2, dpi=1100,
          width=8.2, height=4.3,units="cm")
 }
@@ -1850,7 +1879,7 @@ for (L in 1:3) {
     }
     if (1) {
       if (L==1&coortype=="R") {
-        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+        ggsave(paste0(pltmaindir,subdir,"/legend.png"),
                plot=CoorDisTempPlt, dpi=1100, 
                width=20, height=10,units="cm")
       }
@@ -1860,7 +1889,7 @@ for (L in 1:3) {
     
     #print(ggplotly(CoorDisTempPlt))
     if (savept) {
-      ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_Hbond_",coortype,".png"),
+      ggsave(paste0(pltmaindir,subdir,SysPrefix,"_Hbond_",coortype,".png"),
              plot=CoorDisTempPlt, dpi=1100,
              width=8.2, height=4.3,units="cm")
     }
@@ -1882,7 +1911,7 @@ for (L in 1:3) {
   }
   print(ggplotly(HbondCountTypeTempPlt))
   if (savept) {
-    ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_Hbond_Count.png"),
+    ggsave(paste0(pltmaindir,subdir,SysPrefix,"_Hbond_Count.png"),
            plot=HbondCountTypeTempPlt, dpi=1100,
            width=8.6, height=4.3,units="cm")
   }
@@ -1919,10 +1948,10 @@ colnames(HbondTypeCount)<-c("ResType","Count","Type","System")
 
 ```{r Hbond Dist plt}
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"HbondCountPlt.png"),
+  ggsave(paste0(pltmaindir,subdir,"HbondCountPlt.png"),
          plot=HbondCountPlt, dpi=1100,
          width=2*8.6, height=2*4.3,units="cm")
 }
@@ -2080,16 +2109,16 @@ for (L in 2:3) {
 
 ```{r Hbond T plt}
 # Convert and print each long_data plot using ggplotly
-if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+ggsave(paste0(pltmaindir,subdir,"/legend.png"),
        plot=plots_original$plot_original_L2, dpi=1100, 
        width=20, height=10,units="cm")
 for (plot_name in names(plots_long)) {
   plotly_plot <- ggplotly(plots_long[[plot_name]])
   print(plotly_plot)
-  ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_",plot_name,".png"),
+  ggsave(paste0(pltmaindir,subdir,SysPrefix,"_",plot_name,".png"),
            plot=plots_long[[plot_name]]+theme(legend.position = "none"), dpi=1100,
            width=8.6*2, height=2*4.3,units="cm")
 }
@@ -2098,7 +2127,7 @@ for (plot_name in names(plots_long)) {
 for (plot_name in names(plots_original)) {
   plotly_plot <- ggplotly(plots_original[[plot_name]])
   print(plotly_plot)
-    ggsave(paste0("Ind_Plt/",subdir,SysPrefix,"_",plot_name,".png"),
+    ggsave(paste0(pltmaindir,subdir,SysPrefix,"_",plot_name,".png"),
            plot=plots_original[[plot_name]]+theme(legend.position = "none"), dpi=1100,
            width=8.6*2, height=2*4.3,units="cm")
 }
@@ -2276,21 +2305,21 @@ Hbond_count_plt_TIP3<-{
 
 ```{r Hbond T TIP3 plt}
 # Convert and print each long_data plot using ggplotly
-if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+ggsave(paste0(pltmaindir,subdir,"/legend.png"),
        plot=plots_original$plot_original_L2, dpi=1100, 
        width=20, height=10,units="cm")
 # Convert and print each original count plot using ggplotly
 for (plot_name in names(plots_original)) {
   plotly_plot <- ggplotly(plots_original[[plot_name]])
   print(plotly_plot)
-  ggsave(paste0("Ind_Plt/",subdir,plot_name,".png"),
+  ggsave(paste0(pltmaindir,subdir,plot_name,".png"),
            plot=plots_original[[plot_name]], dpi=1100,
            width=8.6*2, height=2*4.3*1.3,units="cm")
 }
-ggsave(paste0("Ind_Plt/",subdir,"HbondCount_TIP3.png"),
+ggsave(paste0(pltmaindir,subdir,"HbondCount_TIP3.png"),
            plot=Hbond_count_plt_TIP3, dpi=1100,
            width=8.6*2, height=2*4.3*1.3,units="cm")
 ggplotly(Hbond_count_plt_TIP3)
@@ -2466,14 +2495,14 @@ for (L in 1:3) {
 # Create necessary directories
 dirs <- c("All", "CSH_CSSC", "AMIDE")
 for (dir in dirs) {
-  full_path <- paste0("Ind_Plt/", subdir, "/", dir)
+  full_path <- paste0(pltmaindir, subdir, "/", dir)
   if (!dir.exists(full_path)) {
     dir.create(full_path, recursive = TRUE)
   }
 }
 
 # Save legend
-ggsave(paste0("Ind_Plt/", subdir, "/legend.png"),
+ggsave(paste0(pltmaindir, subdir, "/legend.png"),
        plot = plots_all[[1]]+
          guides(fill = guide_colorbar(title.theme = element_text(margin = margin(r = 15)))), dpi = 1100,
        width = 20, height = 10, units = "cm")
@@ -2483,7 +2512,7 @@ ggsave(paste0("Ind_Plt/", subdir, "/legend.png"),
 for (i in 1:length(names(plots_all))) {
   plotly_plot <- ggplotly(plots_all[[i]])
   print(plotly_plot)
-  ggsave(paste0("Ind_Plt/", subdir, "/All/", i, ".png"),
+  ggsave(paste0(pltmaindir, subdir, "/All/", i, ".png"),
          plot = plots_all[[i]]+      theme(legend.position = "none",axis.title.y = element_blank())
 , dpi = 1100,
          width = 8.6*2 , height = 4.3*2, units = "cm")
@@ -2492,7 +2521,7 @@ for (i in 1:length(names(plots_all))) {
  for (i in 1:length(names(plots_resname))) {
   plotly_plot <- ggplotly(plots_resname[[i]])
   print(plotly_plot)
-  ggsave(paste0("Ind_Plt/", subdir, "/CSH_CSSC/", i, ".png"),
+  ggsave(paste0(pltmaindir, subdir, "/CSH_CSSC/", i, ".png"),
          plot = plots_resname[[i]], dpi = 1100,
          width = 8.6 * 2, height = 2 * 4.3 * 1.3, units = "cm")
 }
@@ -2500,7 +2529,7 @@ for (i in 1:length(names(plots_all))) {
 for (i in 1:length(names(plots_AMindex))) {
   plotly_plot <- ggplotly(plots_AMindex[[i]])
   print(plotly_plot)
-  ggsave(paste0("Ind_Plt/", subdir, "/AMIDE/", i, ".png"),
+  ggsave(paste0(pltmaindir, subdir, "/AMIDE/", i, ".png"),
          plot = plots_AMindex[[i]], dpi = 1100,
          width = 8.6 * 2, height = 2 * 4.3 * 1.3, units = "cm")
 }
@@ -2621,19 +2650,19 @@ ggplotly(contact_plt4)
 
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"MixFibercontact_atom.png"),
+  ggsave(paste0(pltmaindir,subdir,"MixFibercontact_atom.png"),
          plot=contact_plt1, dpi=1100, 
          width=8.6*2, height=4.3*2,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Mixcontact_atom.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mixcontact_atom.png"),
          plot=contact_plt2, dpi=1100, 
          width=8.6*2, height=4.3*2,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"PureFibercontact_atom.png"),
+  ggsave(paste0(pltmaindir,subdir,"PureFibercontact_atom.png"),
          plot=contact_plt3, dpi=1100, 
          width=8.6*2, height=4.3*2,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Purecontact_atom.png"),
+  ggsave(paste0(pltmaindir,subdir,"Purecontact_atom.png"),
          plot=contact_plt4+
            theme(legend.position = "right",   
                  legend.direction = "horizontal",
@@ -2770,7 +2799,7 @@ Solvation_pmf_plt<- {
 # Plot the data
 ggplotly(Solvation_pmf_plt)
 if (savept) {
-  ggsave(paste0("Ind_Plt/",subdir,"1D Free Energy of Solvation.png"),
+  ggsave(paste0(pltmaindir,subdir,"1D Free Energy of Solvation.png"),
          plot=Solvation_pmf_plt, dpi=1100, 
          width=2*8.6, height=2*4.3,units="cm")
 }
@@ -2954,7 +2983,7 @@ Solvation_pmf_plt2d<- {
 # Plot the data
 ggplotly(Solvation_pmf_plt2d)
 if (savept) {
-  ggsave(paste0("Ind_Plt/",subdir,"Free Energy of Solvation 2D.png"),
+  ggsave(paste0(pltmaindir,subdir,"Free Energy of Solvation 2D.png"),
          plot=Solvation_pmf_plt2d, dpi=1100, 
          width=2*8.6, height=2*4.3,units="cm")
 }
@@ -3156,13 +3185,13 @@ hbondrdisplt
 hbondzdisplt
 hbondtypedisplt
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"Hbond_dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Hbond_dis_R.png"),
          plot=hbondrdisplt, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Hbond_dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Hbond_dis_R.png"),
          plot=hbondrdisplt, dpi=1100, 
          width=8.6, height=4.3,units="cm")
 }
@@ -3301,7 +3330,7 @@ for (L in seq_along(RdataName)) {
   }
     if (1) {
     if (L==1) {
-        ggsave(paste0("Ind_Plt/",subdir,"/legend.png"),
+        ggsave(paste0(pltmaindir,subdir,"/legend.png"),
          plot=Hbond_R_plot, dpi=1100, 
          width=20, height=10,units="cm")
     }
@@ -3329,25 +3358,25 @@ ggplotly(Hbond_Z_plt3)
 
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Mix_CoorZ.png"),
          plot=Hbond_Z_plt1, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Mix_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Mix_CoorR.png"),
          plot=Hbond_R_plt1, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Cylcssc_Mix_CoorZ.png"),
          plot=Hbond_Z_plt2, dpi=1100,
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Cylcssc_Mix_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Cylcssc_Mix_CoorR.png"),
          plot=Hbond_R_plt2, dpi=1100,
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorZ.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Pure_CoorZ.png"),
          plot=Hbond_Z_plt3, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"/Pure_CoorR.png"),
+  ggsave(paste0(pltmaindir,subdir,"/Pure_CoorR.png"),
          plot=Hbond_R_plt3, dpi=1100, 
          width=8.6, height=4.3,units="cm")
 }
@@ -3653,29 +3682,29 @@ ggplotly(CSSCMixPiDistPltR)
 ggplotly(CSSCMixPiDistPltZ)
 
 if (savept) {
-  if (!dir.exists(paste0("Ind_Plt/",`subdir))) {
-    dir.create(paste0("Ind_Plt/",subdir))
+  if (!dir.exists(paste0(pltmaindir,`subdir))) {
+    dir.create(paste0(pltmaindir,subdir))
   }
-  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_Z.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mix_Pi_Dis_Z.png"),
          plot=MixPiDistPltZ, dpi=1100,
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Mix_Pi_Dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Mix_Pi_Dis_R.png"),
          plot=MixPiDistPltR, dpi=1100,
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_Pi_Dis_Z.png"),
+  ggsave(paste0(pltmaindir,subdir,"Cylcssc_Mix_Pi_Dis_Z.png"),
          plot=CSSCMixPiDistPltZ, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Cylcssc_Mix_Pi_Dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Cylcssc_Mix_Pi_Dis_R.png"),
          plot=CSSCMixPiDistPltR, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_Z.png"),
+  ggsave(paste0(pltmaindir,subdir,"Pure_Pi_Dis_Z.png"),
          plot=PurePiDistPltZ, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  ggsave(paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_R.png"),
+  ggsave(paste0(pltmaindir,subdir,"Pure_Pi_Dis_R.png"),
          plot=PurePiDistPltR, dpi=1100, 
          width=8.6, height=4.3,units="cm")
-  orca(PurePiContourPltFibre,paste0("Ind_Plt/",subdir,"Pure_Pi_Dis_Ang.png"))
-  ggsave(paste0("Ind_Plt/",subdir,"PiCountPlt.png"),
+  orca(PurePiContourPltFibre,paste0(pltmaindir,subdir,"Pure_Pi_Dis_Ang.png"))
+  ggsave(paste0(pltmaindir,subdir,"PiCountPlt.png"),
          plot=PiCountPlt, dpi=1100, 
          width=2*8.6, height=2*4.3,units="cm")
 }
