@@ -1,5 +1,7 @@
 # MD-Analysis-CSH-CSSC-Fiber
-Rscript & Tclscript contain scripts that analyze the MD traj
+Rscript & Tclscript contain scripts that analyze the MD traj as seen in 
+Song et.al Cryo-EM Informed Molecular Dynamics Simulations to Investigate the Disulfide Hydrogel Self-Assembly
+https://chemistry-europe.onlinelibrary.wiley.com/doi/10.1002/cphc.202401085
 
 Data contains all the rda file than can be plotted using the Rmd script in R
 
